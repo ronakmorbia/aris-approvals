@@ -342,7 +342,15 @@ async function doAction(tid, action) {
   renderAll();
 
   if (action==='okay') {
-    // Just mark locally — no email needed for FYI
+    try {
+      const r = await fetch('/api/gmail?action=mark-read', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ tokens, tid })
+      });
+      const d = await r.json();
+      if (d.refreshedTokens) saveTokens(d.refreshedTokens);
+    } catch(e) {}
     const idx = items.findIndex(i=>i.tid===tid);
     if (idx>=0) items.splice(idx,1);
     delete actionStatus[tid];

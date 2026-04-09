@@ -109,6 +109,21 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Mark thread as read ──────────────────────────────────────────────────
+  if (action === 'mark-read') {
+    const { tid } = req.body;
+    try {
+      await gmail.users.threads.modify({
+        userId: 'me',
+        id: tid,
+        requestBody: { removeLabelIds: ['UNREAD'] }
+      });
+      return res.json({ ok: true, refreshedTokens: oauth2Client.credentials });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   // ── Send reply ───────────────────────────────────────────────────────────
   if (action === 'send') {
     const { tid, to, cc, subject, body } = req.body;
@@ -139,6 +154,13 @@ export default async function handler(req, res) {
       await gmail.users.messages.send({
         userId: 'me',
         requestBody: { raw, threadId: tid }
+      });
+
+      // Mark thread as read after sending
+      await gmail.users.threads.modify({
+        userId: 'me',
+        id: tid,
+        requestBody: { removeLabelIds: ['UNREAD'] }
       });
 
       return res.json({ ok: true, refreshedTokens: oauth2Client.credentials });
