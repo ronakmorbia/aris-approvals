@@ -103,6 +103,18 @@ main{max-width:960px;margin:0 auto;padding:1.75rem 2rem}
 .empty{text-align:center;padding:3rem;background:var(--surf);border:1px solid var(--b1);border-radius:10px}
 .empty-t{font-size:15px;font-weight:500;color:var(--green);margin-bottom:4px}
 .empty-s{font-size:13px;color:var(--t3)}
+.badge-risk-high{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#FDECEA;color:#C0392B}
+.badge-risk-medium{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#FEF0E6;color:#C05A1A}
+.badge-risk-low{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--green-bg);color:var(--green)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 16px;margin-bottom:10px}
+.kv-l{font-size:11px;color:var(--t3);font-weight:500;white-space:nowrap;line-height:1.9}
+.kv-v{font-size:12px;color:var(--t1);font-weight:500;line-height:1.9;text-align:right}
+.div{height:1px;background:var(--b1);margin:8px 0}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
+.tbl th{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:4px 6px;text-align:left;border-bottom:1px solid var(--b1)}
+.tbl td{padding:5px 6px;color:var(--t1);border-bottom:1px solid var(--b1)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl-total td{font-weight:600;border-top:1px solid var(--b2) !important;border-bottom:none !important}
 .loading{text-align:center;padding:3rem;color:var(--t3);font-size:13px}
 .error-bar{background:var(--red-bg);color:var(--red);padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:1rem}
 </style>
@@ -212,6 +224,7 @@ async function loadInbox() {
 
     document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
     renderAll();
+    startPolling();
   } catch(e) {
     if (e.message.includes('invalid_grant') || e.message.includes('401')) {
       saveTokens(null); localStorage.removeItem('aris_tokens'); showAuth(); return;
@@ -298,18 +311,41 @@ function renderGrp(title, dotCls, list) {
 function renderCard(item) {
   const open = openTid === item.tid;
   const ast = actionStatus[item.tid] || {};
+  const fromName = (item.from||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];
   const badge = item.status==='fyi'?'<span class="badge-fyi">FYI</span>':item.status==='done'?'<span class="badge-done">Approved</span>':'';
-  const fromName = (item.from||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(' ').slice(0,2).join(' ');
+  const riskBadge = item.risk ? `<span class="badge-risk-${item.risk.toLowerCase()}">${item.risk} risk</span>` : '';
+
+  let panelContent = '';
+
+  if (item.fields && item.fields.length) {
+    panelContent += `<div class="kv">${item.fields.map(f=>`<span class="kv-l">${f.label}</span><span class="kv-v">${f.value}</span>`).join('')}</div><div class="div"></div>`;
+  }
+
+  if (item.rows && item.rows.length) {
+    const catColor = {'Salary':'#27500A','Expenses':'#0C447C','Finance Cost':'#791F1F'};
+    const catBg = {'Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FDECEA'};
+    panelContent += `<table class="tbl">
+      <thead><tr><th>Name</th><th>Category</th><th style="text-align:right">Amount</th></tr></thead>
+      <tbody>${item.rows.map(r=>`<tr>
+        <td>${r.name}</td>
+        <td><span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:${catBg[r.category]||'#F1EFE8'};color:${catColor[r.category]||'#444'}">${r.category}</span></td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;font-weight:500">${r.amount}</td>
+      </tr>`).join('')}
+      ${item.amount?`<tr class="tbl-total"><td colspan="2">Total</td><td style="text-align:right;font-family:'DM Mono',monospace">${item.amount}</td></tr>`:''}
+      </tbody></table>`;
+  }
+
+  if (item.note) panelContent += `<div class="snip">${item.note}</div>`;
 
   let actions = '';
-  if (item.status === 'pending') {
+  if (item.status==='pending') {
     actions = `<textarea class="cmt" id="cmt-${item.tid}" rows="2" placeholder="Add a comment (optional)…"></textarea>
     <div class="ar">
       <button class="btn btn-a" onclick="event.stopPropagation();doAction('${item.tid}','approve')">✓ Approve</button>
       <button class="btn btn-r" onclick="event.stopPropagation();doAction('${item.tid}','reject')">✕ Reject</button>
       ${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}
     </div>`;
-  } else if (item.status === 'fyi') {
+  } else if (item.status==='fyi') {
     actions = `<div class="ar"><button class="btn btn-o" onclick="event.stopPropagation();doAction('${item.tid}','okay')">✓ Mark as read</button>${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}</div>`;
   }
 
@@ -317,18 +353,19 @@ function renderCard(item) {
     <div class="ct">
       <div class="ci ci-${item.type}">${item.type}</div>
       <div class="cb">
-        <div class="cs">${item.title || item.subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi,'').trim()}</div>
+        <div class="cs">${item.title||item.subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi,'').trim()}</div>
         <div class="cm">${fromName} · ${item.date} · ${item.cat}</div>
       </div>
       <div class="cr">
         ${item.amount?`<span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">${item.amount}</span>`:''}
+        ${riskBadge}
         <span class="tp tp-${item.type}">${TYPE_LABELS[item.type]||item.type}</span>
         ${badge}
         <span class="chev">${open?'▴':'▾'}</span>
       </div>
     </div>
     <div class="panel${open?' show':''}">
-      <div class="snip">${item.summary || item.snip || ''}</div>
+      ${panelContent}
       ${actions}
     </div>
   </div>`;
@@ -391,6 +428,81 @@ async function doAction(tid, action) {
 }
 
 boot();
+
+// ── Auto-poll every 90 seconds ────────────────────────────────────────────────
+const POLL_INTERVAL = 90 * 1000;
+let pollTimer = null;
+let isPolling = false;
+
+async function silentRefresh() {
+  if (!tokens || isPolling) return;
+  isPolling = true;
+
+  // Show subtle pulse on the timestamp
+  const ts = document.getElementById('ts');
+  if (ts) ts.style.opacity = '0.4';
+
+  try {
+    const r = await fetch('/api/gmail?action=inbox', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ tokens })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    if (d.refreshedTokens) saveTokens(d.refreshedTokens);
+
+    const newItems = d.items.map(item => ({
+      ...item,
+      type: detectType(item.subj),
+      amt: extractAmt(item.subj),
+      from: cleanFrom(item.from),
+      date: formatDate(item.date),
+      snip: decodeHtml(item.snippet)
+    }));
+
+    // Only re-render if something changed (compare thread IDs + read state)
+    const sig = newItems.map(i => i.tid + i.read).join('|');
+    const oldSig = items.map(i => i.tid + i.read).join('|');
+    if (sig !== oldSig) {
+      items = newItems;
+      renderAll();
+    }
+
+    if (ts) {
+      ts.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      ts.style.opacity = '1';
+    }
+  } catch(e) {
+    // Silently fail — don't disrupt the UI
+    if (ts) ts.style.opacity = '1';
+    if (e.message.includes('invalid_grant') || e.message.includes('401')) {
+      saveTokens(null); localStorage.removeItem('aris_tokens');
+      stopPolling(); showAuth();
+    }
+  } finally {
+    isPolling = false;
+  }
+}
+
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(silentRefresh, POLL_INTERVAL);
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+// Start polling once page is visible and authenticated
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPolling();
+  } else if (tokens) {
+    silentRefresh(); // immediate refresh on tab focus
+    startPolling();
+  }
+});
 </script>
 </body>
 </html>
