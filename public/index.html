@@ -269,7 +269,7 @@ function renderAll() {
       <div class="mc"><div class="ml">Total</div><div class="mv">${items.length}</div><div class="ms">Funds + CRM</div></div>
     </div>
     <div class="chips">
-      ${['all','pending','fyi','done','Funds','CRM'].map(f=>`<button class="chip${filter===f?' on':''}" onclick="setF('${f}')">${f==='all'?'All':f==='fyi'?'FYI':f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
+      ${['all','pending','fyi','done','Funds','CRM','HR','Tax'].map(f=>`<button class="chip${filter===f?' on':''}" onclick="setF('${f}')">${f==='all'?'All':f==='fyi'?'FYI':f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
     </div>`;
 
   let content = '';
@@ -285,8 +285,7 @@ function getFiltered() {
   if (filter==='pending') return items.filter(i=>i.status==='pending');
   if (filter==='fyi') return items.filter(i=>i.status==='fyi');
   if (filter==='done') return items.filter(i=>i.status==='done');
-  if (filter==='Funds') return items.filter(i=>i.cat==='Funds');
-  if (filter==='CRM') return items.filter(i=>i.cat==='CRM');
+  if (['Funds','CRM','HR','Tax'].includes(filter)) return items.filter(i=>i.cat===filter);
   return items;
 }
 
@@ -298,33 +297,38 @@ function renderGrp(title, dotCls, list) {
 
 function renderCard(item) {
   const open = openTid === item.tid;
-  const subj = item.subj.replace(/^(Re:|RE:|Fwd:)\s*/gi,'').trim();
   const ast = actionStatus[item.tid] || {};
   const badge = item.status==='fyi'?'<span class="badge-fyi">FYI</span>':item.status==='done'?'<span class="badge-done">Approved</span>':'';
+  const fromName = (item.from||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(' ').slice(0,2).join(' ');
+
   let actions = '';
-  if (item.status==='pending') {
+  if (item.status === 'pending') {
     actions = `<textarea class="cmt" id="cmt-${item.tid}" rows="2" placeholder="Add a comment (optional)…"></textarea>
     <div class="ar">
       <button class="btn btn-a" onclick="event.stopPropagation();doAction('${item.tid}','approve')">✓ Approve</button>
       <button class="btn btn-r" onclick="event.stopPropagation();doAction('${item.tid}','reject')">✕ Reject</button>
       ${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}
     </div>`;
-  } else if (item.status==='fyi') {
+  } else if (item.status === 'fyi') {
     actions = `<div class="ar"><button class="btn btn-o" onclick="event.stopPropagation();doAction('${item.tid}','okay')">✓ Mark as read</button>${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}</div>`;
   }
+
   return `<div class="card${open?' open':''}" onclick="toggleCard('${item.tid}')">
     <div class="ct">
       <div class="ci ci-${item.type}">${item.type}</div>
-      <div class="cb"><div class="cs">${subj}</div><div class="cm">${item.from} · ${item.date} · ${item.cat}</div></div>
+      <div class="cb">
+        <div class="cs">${item.title || item.subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi,'').trim()}</div>
+        <div class="cm">${fromName} · ${item.date} · ${item.cat}</div>
+      </div>
       <div class="cr">
-        ${item.amt?`<span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">${item.amt}</span>`:''}
+        ${item.amount?`<span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">${item.amount}</span>`:''}
         <span class="tp tp-${item.type}">${TYPE_LABELS[item.type]||item.type}</span>
         ${badge}
         <span class="chev">${open?'▴':'▾'}</span>
       </div>
     </div>
     <div class="panel${open?' show':''}">
-      <div class="snip">${item.snip}</div>
+      <div class="snip">${item.summary || item.snip || ''}</div>
       ${actions}
     </div>
   </div>`;

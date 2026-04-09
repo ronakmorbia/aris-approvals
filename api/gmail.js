@@ -52,14 +52,18 @@ export default async function handler(req, res) {
   // ── Fetch inbox ──────────────────────────────────────────────────────────
   if (action === 'inbox') {
     try {
-      const [fundsRes, crmRes] = await Promise.all([
+      const [fundsRes, crmRes, hrRes, taxRes] = await Promise.all([
         gmail.users.messages.list({ userId: 'me', q: 'label:Funds in:inbox', maxResults: 50 }),
-        gmail.users.messages.list({ userId: 'me', q: 'label:CRM in:inbox', maxResults: 30 })
+        gmail.users.messages.list({ userId: 'me', q: 'label:CRM in:inbox', maxResults: 30 }),
+        gmail.users.messages.list({ userId: 'me', q: 'label:HR in:inbox', maxResults: 30 }),
+        gmail.users.messages.list({ userId: 'me', q: 'label:Tax in:inbox', maxResults: 30 })
       ]);
 
       const allMessages = [
         ...(fundsRes.data.messages || []).map(m => ({ ...m, cat: 'Funds' })),
-        ...(crmRes.data.messages || []).map(m => ({ ...m, cat: 'CRM' }))
+        ...(crmRes.data.messages || []).map(m => ({ ...m, cat: 'CRM' })),
+        ...(hrRes.data.messages || []).map(m => ({ ...m, cat: 'HR' })),
+        ...(taxRes.data.messages || []).map(m => ({ ...m, cat: 'Tax' }))
       ];
 
       // Deduplicate by threadId — keep latest message per thread
@@ -73,10 +77,11 @@ export default async function handler(req, res) {
       const items = [];
       for (const msg of threadMap.values()) {
         try {
+          // Fetch full message to get body text
           const detail = await gmail.users.messages.get({
             userId: 'me',
             id: msg.id,
-            format: 'metadata',
+            format: 'full',
             metadataHeaders: ['From', 'To', 'Cc', 'Subject', 'Date']
           });
 
@@ -90,17 +95,72 @@ export default async function handler(req, res) {
           const to = (headers.to || '').toLowerCase();
           const isCc = !to.includes('ronak@aris.in') && !to.includes('ronak@arisinfra.one');
 
-          // Status logic:
-          // - unread + in To = pending (needs your action)
-          // - unread + in CC only = fyi
-          // - read = done (you've already acted on it)
           let status;
-          if (!isUnread) {
-            status = 'done';
-          } else if (isCc) {
-            status = 'fyi';
-          } else {
-            status = 'pending';
+          if (!isUnread) status = 'done';
+          else if (isCc) status = 'fyi';
+          else status = 'pending';
+
+          // Extract plain text body
+          let bodyText = detail.data.snippet || '';
+          try {
+            const extractBody = (part) => {
+              if (!part) return '';
+              if (part.mimeType === 'text/plain' && part.body?.data) {
+                return Buffer.from(part.body.data, 'base64').toString('utf-8');
+              }
+              if (part.parts) {
+                for (const p of part.parts) {
+                  const text = extractBody(p);
+                  if (text) return text;
+                }
+              }
+              return '';
+            };
+            const extracted = extractBody(detail.data.payload);
+            if (extracted) bodyText = extracted.slice(0, 2000);
+          } catch(e) {}
+
+          // Generate smart card content via Anthropic API
+          let title = headers.subject || '';
+          let amount = '';
+          let summary = '';
+
+          try {
+            const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+              },
+              body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 300,
+                system: `You are an assistant that processes approval request emails for ARIS, a construction materials company. 
+Extract key information and return ONLY valid JSON with no other text:
+{
+  "title": "Short action-oriented title (max 8 words, no APP- prefix, e.g. 'Vendor payment — Arisinfra' or 'Customer creation — Casa Grande Axiom')",
+  "amount": "Amount if mentioned (e.g. '₹2.06 Cr' or '₹30 L') or empty string",
+  "summary": "2-3 sentence summary. For pending: what is being requested, by whom, key details. For FYI/done: what happened, who requested it, who approved it."
+}`,
+                messages: [{
+                  role: 'user',
+                  content: `Category: ${msg.cat}\nStatus: ${status}\nSubject: ${headers.subject}\nFrom: ${headers.from}\nBody:\n${bodyText}`
+                }]
+              })
+            });
+            const aiData = await aiRes.json();
+            const aiText = aiData.content?.[0]?.text || '';
+            const s = aiText.indexOf('{'), e = aiText.lastIndexOf('}');
+            if (s !== -1 && e !== -1) {
+              const parsed = JSON.parse(aiText.slice(s, e + 1));
+              title = parsed.title || title;
+              amount = parsed.amount || '';
+              summary = parsed.summary || '';
+            }
+          } catch(e) {
+            // Fall back to subject and snippet
+            summary = detail.data.snippet || '';
           }
 
           items.push({
@@ -108,11 +168,13 @@ export default async function handler(req, res) {
             mid: msg.id,
             cat: msg.cat,
             subj: headers.subject || '',
+            title,
+            amount,
+            summary,
             from: headers.from || '',
             date: headers.date || '',
             to: headers.to || '',
             cc: headers.cc || '',
-            snippet: detail.data.snippet || '',
             isUnread,
             isCc,
             status
