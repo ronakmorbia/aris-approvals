@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIS · Approvals</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#F5F4F0; --surf:#FFFFFF; --surf2:#F8F7F4; --b1:#E5E2DB; --b2:#C8C5BC;
+  --t1:#181714; --t2:#5C5A55; --t3:#9E9B94;
+  --amber:#F5A500;
+  --green:#1E7A45; --green-bg:#EAF5EE;
+  --red:#C0392B; --red-bg:#FDECEA;
+  --blue:#1A5CA0; --blue-bg:#EAF0FA;
+  --orange:#C05A1A; --orange-bg:#FEF0E6;
+  --purple:#5B4BB5; --purple-bg:#F0EEFF;
+  --teal:#1A7A6E; --teal-bg:#E8F7F5;
+  --pink:#A03060; --pink-bg:#FAEEF4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;font-size:14px}
+header{background:var(--surf);border-bottom:1px solid var(--b1);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:10px}
+.lm{width:30px;height:30px;background:var(--amber);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#18171A}
+.ln{font-size:14px;font-weight:600}.ls{color:var(--t3);margin:0 4px}.lb{font-size:13px;color:var(--t2)}
+.ha{display:flex;align-items:center;gap:10px}
+.ts{font-size:11px;color:var(--t3);font-family:'DM Mono',monospace}
+.rbtn{padding:6px 14px;background:var(--t1);color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
+.rbtn:hover{opacity:.82}.rbtn:disabled{opacity:.5;pointer-events:none}
+main{max-width:960px;margin:0 auto;padding:1.75rem 2rem}
+
+/* Auth screen */
+.auth-screen{text-align:center;padding:4rem 2rem}
+.auth-title{font-size:22px;font-weight:500;margin-bottom:8px}
+.auth-sub{font-size:14px;color:var(--t2);margin-bottom:2rem}
+.auth-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--t1);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;text-decoration:none}
+.auth-btn:hover{opacity:.85}
+.auth-note{font-size:12px;color:var(--t3);margin-top:1rem}
+
+/* Metrics */
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.75rem}
+.mc{background:var(--surf);border:1px solid var(--b1);border-radius:10px;padding:1rem 1.1rem}
+.ml{font-size:11px;font-weight:500;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.mv{font-size:26px;font-weight:300;letter-spacing:-1px}
+.mv.o{color:var(--orange)}.mv.g{color:var(--green)}.mv.b{color:var(--blue)}
+.ms{font-size:11px;color:var(--t3);margin-top:3px}
+
+/* Chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem}
+.chip{font-size:12px;font-weight:500;padding:5px 14px;border-radius:999px;border:1px solid var(--b2);background:transparent;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif}
+.chip.on{background:var(--t1);color:white;border-color:transparent}
+
+/* Groups + cards */
+.grp{margin-bottom:1.75rem}
+.gh{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--b1);margin-bottom:10px}
+.gd{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.gd-p{background:var(--orange)}.gd-f{background:var(--blue)}.gd-d{background:var(--green)}
+.gl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3)}
+.gb{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--b1);color:var(--t2)}
+.card{background:var(--surf);border:1px solid var(--b1);border-radius:10px;padding:14px 16px;margin-bottom:6px;cursor:pointer}
+.card:hover{border-color:var(--b2)}.card.open{border-color:var(--b2)}
+.ct{display:flex;align-items:center;gap:12px}
+.ci{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;font-family:'DM Mono',monospace}
+.ci-VPAY{background:var(--purple-bg);color:var(--purple)}
+.ci-TD{background:var(--teal-bg);color:var(--teal)}
+.ci-TRF{background:#FFF8E1;color:#8B6914}
+.ci-EXP{background:var(--orange-bg);color:var(--orange)}
+.ci-FD{background:var(--pink-bg);color:var(--pink)}
+.ci-CRM{background:var(--blue-bg);color:var(--blue)}
+.ci-GEN{background:var(--b1);color:var(--t2)}
+.cb{flex:1;min-width:0}
+.cs{font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm{font-size:12px;color:var(--t3);margin-top:2px}
+.cr{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.tp{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
+.tp-VPAY{background:var(--purple-bg);color:var(--purple)}
+.tp-TD{background:var(--teal-bg);color:var(--teal)}
+.tp-TRF{background:#FFF8E1;color:#8B6914}
+.tp-EXP{background:var(--orange-bg);color:var(--orange)}
+.tp-FD{background:var(--pink-bg);color:var(--pink)}
+.tp-CRM{background:var(--blue-bg);color:var(--blue)}
+.tp-GEN{background:var(--b1);color:var(--t2)}
+.badge-fyi{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--blue-bg);color:var(--blue)}
+.badge-done{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--green-bg);color:var(--green)}
+.chev{font-size:12px;color:var(--t3)}
+.panel{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--b1)}
+.panel.show{display:block}
+.snip{font-size:12px;color:var(--t2);background:var(--surf2);border-radius:6px;padding:10px 12px;margin-bottom:12px;border-left:2px solid var(--b2);line-height:1.6}
+.cmt{width:100%;padding:8px 10px;border:1px solid var(--b2);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--t1);background:var(--surf);resize:none;outline:none;margin-bottom:10px}
+.cmt:focus{border-color:var(--t1)}
+.ar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{padding:7px 16px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn-a{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.btn-a:hover{background:var(--green);color:white}
+.btn-r{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.btn-r:hover{background:var(--red);color:white}
+.btn-o{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.btn-o:hover{background:var(--blue);color:white}
+.ast{font-size:12px;font-weight:500}
+.ast-ok{color:var(--green)}.ast-er{color:var(--red)}
+.empty{text-align:center;padding:3rem;background:var(--surf);border:1px solid var(--b1);border-radius:10px}
+.empty-t{font-size:15px;font-weight:500;color:var(--green);margin-bottom:4px}
+.empty-s{font-size:13px;color:var(--t3)}
+.loading{text-align:center;padding:3rem;color:var(--t3);font-size:13px}
+.error-bar{background:var(--red-bg);color:var(--red);padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:1rem}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="lm">AR</div>
+    <span class="ln">ARIS</span><span class="ls">·</span><span class="lb">Approvals</span>
+  </div>
+  <div class="ha">
+    <span class="ts" id="ts"></span>
+    <button class="rbtn" id="rbtn" onclick="loadInbox()">↺ Refresh</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="loading">Checking authentication…</div>
+</main>
+
+<script>
+const TYPE_LABELS = {VPAY:'Vendor Pay',TD:'Trade Deposit',TRF:'Transfer',EXP:'Expenses',FD:'Fixed Deposit',CRM:'CRM',GEN:'General'};
+let items = [];
+let filter = 'all';
+let openTid = null;
+const actionStatus = {};
+let tokens = null;
+
+// ── Token storage ────────────────────────────────────────────────────────────
+function saveTokens(t) { tokens = t; try { localStorage.setItem('aris_tokens', JSON.stringify(t)); } catch(e){} }
+function loadTokens() { try { const t = localStorage.getItem('aris_tokens'); return t ? JSON.parse(t) : null; } catch(e){ return null; } }
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+async function boot() {
+  const params = new URLSearchParams(window.location.search);
+  
+  // Tokens passed back from OAuth redirect
+  const tokensParam = params.get('tokens');
+  if (tokensParam) {
+    try {
+      const t = JSON.parse(decodeURIComponent(tokensParam));
+      saveTokens(t);
+      history.replaceState({}, '', '/');
+      await loadInbox();
+      return;
+    } catch(e) {}
+  }
+
+  // Legacy: code-based flow
+  const code = params.get('code');
+  if (code) {
+    history.replaceState({}, '', '/');
+    try {
+      const r = await fetch('/api/gmail?action=auth-callback&code=' + encodeURIComponent(code));
+      const d = await r.json();
+      if (d.tokens) { saveTokens(d.tokens); await loadInbox(); return; }
+    } catch(e) {}
+  }
+
+  tokens = loadTokens();
+  if (tokens) { await loadInbox(); }
+  else { showAuth(); }
+}
+
+// ── Auth screen ──────────────────────────────────────────────────────────────
+function showAuth() {
+  document.getElementById('main').innerHTML = `
+    <div class="auth-screen">
+      <div class="auth-title">Connect your Gmail</div>
+      <div class="auth-sub">Sign in with ronak@aris.in to access your approval inbox</div>
+      <button class="auth-btn" onclick="startAuth()">Sign in with Google</button>
+      <div class="auth-note">You'll only need to do this once.</div>
+    </div>`;
+}
+
+async function startAuth() {
+  const r = await fetch('/api/gmail?action=auth-url');
+  const d = await r.json();
+  window.location.href = d.url;
+}
+
+// ── Load inbox ───────────────────────────────────────────────────────────────
+async function loadInbox() {
+  const btn = document.getElementById('rbtn');
+  if (btn) { btn.disabled = true; btn.textContent = '↺ Loading…'; }
+  document.getElementById('main').innerHTML = '<div class="loading">Fetching your inbox…</div>';
+
+  try {
+    const r = await fetch('/api/gmail?action=inbox', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ tokens })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    if (d.refreshedTokens) saveTokens(d.refreshedTokens);
+
+    items = d.items.map(item => ({
+      ...item,
+      type: detectType(item.subj),
+      amt: extractAmt(item.subj),
+      from: cleanFrom(item.from),
+      date: formatDate(item.date),
+      snip: decodeHtml(item.snippet)
+    }));
+
+    document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    renderAll();
+  } catch(e) {
+    if (e.message.includes('invalid_grant') || e.message.includes('401')) {
+      saveTokens(null); localStorage.removeItem('aris_tokens'); showAuth(); return;
+    }
+    document.getElementById('main').innerHTML = `<div class="error-bar">Error: ${e.message}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Refresh'; }
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function detectType(s) {
+  s = (s||'').toUpperCase();
+  if (s.includes('APP-VPAY')) return 'VPAY';
+  if (s.includes('APP-TD')) return 'TD';
+  if (s.includes('APP-TRF')) return 'TRF';
+  if (s.includes('APP-EXP')) return 'EXP';
+  if (s.includes('APP-FD')) return 'FD';
+  if (s.includes('CRM')) return 'CRM';
+  return 'GEN';
+}
+function extractAmt(s) {
+  const cr = (s||'').match(/(\d+\.?\d*)\s*Cr/i);
+  if (cr) return '₹'+cr[1]+' Cr';
+  const rs = (s||'').match(/Rs\.?\s*([\d,]+)/i);
+  if (rs) return '₹'+rs[1];
+  const l = (s||'').match(/(\d+\.?\d*)\s*Lacs?/i);
+  if (l) return '₹'+l[1]+' L';
+  return '';
+}
+function cleanFrom(f) { return (f||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(' ').slice(0,2).join(' '); }
+function formatDate(d) {
+  if (!d) return '';
+  try { return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}); } catch(e){ return d; }
+}
+function decodeHtml(s) { return (s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"'); }
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  const filtered = getFiltered();
+  const pending = filtered.filter(i=>i.status==='pending');
+  const fyi = filtered.filter(i=>i.status==='fyi');
+  const done = filtered.filter(i=>i.status==='done');
+
+  // metrics
+  const mp = items.filter(i=>i.status==='pending').length;
+  const mf = items.filter(i=>i.status==='fyi').length;
+  const md = items.filter(i=>i.status==='done').length;
+
+  let html = `
+    <div class="metrics">
+      <div class="mc"><div class="ml">Pending</div><div class="mv o">${mp}</div><div class="ms">need action</div></div>
+      <div class="mc"><div class="ml">FYI</div><div class="mv b">${mf}</div><div class="ms">CC only</div></div>
+      <div class="mc"><div class="ml">Approved</div><div class="mv g">${md}</div><div class="ms">replied</div></div>
+      <div class="mc"><div class="ml">Total</div><div class="mv">${items.length}</div><div class="ms">Funds + CRM</div></div>
+    </div>
+    <div class="chips">
+      ${['all','pending','fyi','done','Funds','CRM'].map(f=>`<button class="chip${filter===f?' on':''}" onclick="setF('${f}')">${f==='all'?'All':f==='fyi'?'FYI':f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
+    </div>`;
+
+  let content = '';
+  if (pending.length) content += renderGrp('Pending — your approval needed','gd-p',pending);
+  if (fyi.length) content += renderGrp('FYI — you are in CC','gd-f',fyi);
+  if (done.length) content += renderGrp('Approved','gd-d',done);
+  if (!content) content = `<div class="empty"><div class="empty-t">All clear</div><div class="empty-s">Nothing matches this filter.</div></div>`;
+
+  document.getElementById('main').innerHTML = html + content;
+}
+
+function getFiltered() {
+  if (filter==='pending') return items.filter(i=>i.status==='pending');
+  if (filter==='fyi') return items.filter(i=>i.status==='fyi');
+  if (filter==='done') return items.filter(i=>i.status==='done');
+  if (filter==='Funds') return items.filter(i=>i.cat==='Funds');
+  if (filter==='CRM') return items.filter(i=>i.cat==='CRM');
+  return items;
+}
+
+function setF(f) { filter=f; renderAll(); }
+
+function renderGrp(title, dotCls, list) {
+  return `<div class="grp"><div class="gh"><div class="gd ${dotCls}"></div><span class="gl">${title}</span><span class="gb">${list.length}</span></div>${list.map(renderCard).join('')}</div>`;
+}
+
+function renderCard(item) {
+  const open = openTid === item.tid;
+  const subj = item.subj.replace(/^(Re:|RE:|Fwd:)\s*/gi,'').trim();
+  const ast = actionStatus[item.tid] || {};
+  const badge = item.status==='fyi'?'<span class="badge-fyi">FYI</span>':item.status==='done'?'<span class="badge-done">Approved</span>':'';
+  let actions = '';
+  if (item.status==='pending') {
+    actions = `<textarea class="cmt" id="cmt-${item.tid}" rows="2" placeholder="Add a comment (optional)…"></textarea>
+    <div class="ar">
+      <button class="btn btn-a" onclick="event.stopPropagation();doAction('${item.tid}','approve')">✓ Approve</button>
+      <button class="btn btn-r" onclick="event.stopPropagation();doAction('${item.tid}','reject')">✕ Reject</button>
+      ${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}
+    </div>`;
+  } else if (item.status==='fyi') {
+    actions = `<div class="ar"><button class="btn btn-o" onclick="event.stopPropagation();doAction('${item.tid}','okay')">✓ Mark as read</button>${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}</div>`;
+  }
+  return `<div class="card${open?' open':''}" onclick="toggleCard('${item.tid}')">
+    <div class="ct">
+      <div class="ci ci-${item.type}">${item.type}</div>
+      <div class="cb"><div class="cs">${subj}</div><div class="cm">${item.from} · ${item.date} · ${item.cat}</div></div>
+      <div class="cr">
+        ${item.amt?`<span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">${item.amt}</span>`:''}
+        <span class="tp tp-${item.type}">${TYPE_LABELS[item.type]||item.type}</span>
+        ${badge}
+        <span class="chev">${open?'▴':'▾'}</span>
+      </div>
+    </div>
+    <div class="panel${open?' show':''}">
+      <div class="snip">${item.snip}</div>
+      ${actions}
+    </div>
+  </div>`;
+}
+
+function toggleCard(tid) { openTid = openTid===tid?null:tid; renderAll(); }
+
+// ── Send action ───────────────────────────────────────────────────────────────
+async function doAction(tid, action) {
+  const item = items.find(i=>i.tid===tid);
+  const cmtEl = document.getElementById('cmt-'+tid);
+  const comment = cmtEl?cmtEl.value.trim():'';
+
+  actionStatus[tid] = {text:'Sending…',cls:''};
+  renderAll();
+
+  if (action==='okay') {
+    // Just mark locally — no email needed for FYI
+    const idx = items.findIndex(i=>i.tid===tid);
+    if (idx>=0) items.splice(idx,1);
+    delete actionStatus[tid];
+    openTid=null; renderAll(); return;
+  }
+
+  const body = action==='approve'
+    ? (comment?`Approved.\n\n${comment}`:'Approved.')
+    : (comment?`Rejected.\n\n${comment}`:'Rejected.');
+
+  try {
+    const r = await fetch('/api/gmail?action=send', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        tokens, tid,
+        to: item.to, cc: item.cc,
+        subject: item.subj,
+        body
+      })
+    });
+    const d = await r.json();
+    if (d.refreshedTokens) saveTokens(d.refreshedTokens);
+    if (!d.ok) throw new Error(d.error||'Send failed');
+
+    actionStatus[tid] = {text: action==='approve'?'Sent — Approved ✓':'Sent — Rejected ✓', cls:'ok'};
+    const idx = items.findIndex(i=>i.tid===tid);
+    if (idx>=0) items[idx].status='done';
+    setTimeout(()=>{ openTid=null; delete actionStatus[tid]; renderAll(); }, 1500);
+  } catch(e) {
+    actionStatus[tid] = {text:'Error: '+e.message, cls:'er'};
+    renderAll();
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
