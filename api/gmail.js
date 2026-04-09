@@ -52,27 +52,26 @@ export default async function handler(req, res) {
   // ── Fetch inbox ──────────────────────────────────────────────────────────
   if (action === 'inbox') {
     try {
-      const [fundsRes, crmRes, sentRes] = await Promise.all([
+      const [fundsRes, crmRes] = await Promise.all([
         gmail.users.messages.list({ userId: 'me', q: 'label:Funds in:inbox', maxResults: 50 }),
-        gmail.users.messages.list({ userId: 'me', q: 'label:CRM in:inbox', maxResults: 30 }),
-        gmail.users.messages.list({ userId: 'me', q: 'label:Funds from:ronak@aris.in', maxResults: 50 })
+        gmail.users.messages.list({ userId: 'me', q: 'label:CRM in:inbox', maxResults: 30 })
       ]);
-
-      const approvedThreadIds = new Set(
-        (sentRes.data.messages || []).map(m => m.threadId)
-      );
 
       const allMessages = [
         ...(fundsRes.data.messages || []).map(m => ({ ...m, cat: 'Funds' })),
         ...(crmRes.data.messages || []).map(m => ({ ...m, cat: 'CRM' }))
       ];
 
-      // Deduplicate by threadId, fetch headers
-      const seen = new Set();
-      const items = [];
+      // Deduplicate by threadId — keep latest message per thread
+      const threadMap = new Map();
       for (const msg of allMessages) {
-        if (seen.has(msg.threadId)) continue;
-        seen.add(msg.threadId);
+        if (!threadMap.has(msg.threadId)) {
+          threadMap.set(msg.threadId, msg);
+        }
+      }
+
+      const items = [];
+      for (const msg of threadMap.values()) {
         try {
           const detail = await gmail.users.messages.get({
             userId: 'me',
@@ -80,13 +79,30 @@ export default async function handler(req, res) {
             format: 'metadata',
             metadataHeaders: ['From', 'To', 'Cc', 'Subject', 'Date']
           });
+
           const headers = {};
           for (const h of detail.data.payload.headers) {
             headers[h.name.toLowerCase()] = h.value;
           }
+
+          const labelIds = detail.data.labelIds || [];
+          const isUnread = labelIds.includes('UNREAD');
           const to = (headers.to || '').toLowerCase();
           const isCc = !to.includes('ronak@aris.in') && !to.includes('ronak@arisinfra.one');
-          const approved = approvedThreadIds.has(msg.threadId);
+
+          // Status logic:
+          // - unread + in To = pending (needs your action)
+          // - unread + in CC only = fyi
+          // - read = done (you've already acted on it)
+          let status;
+          if (!isUnread) {
+            status = 'done';
+          } else if (isCc) {
+            status = 'fyi';
+          } else {
+            status = 'pending';
+          }
+
           items.push({
             tid: msg.threadId,
             mid: msg.id,
@@ -97,8 +113,9 @@ export default async function handler(req, res) {
             to: headers.to || '',
             cc: headers.cc || '',
             snippet: detail.data.snippet || '',
+            isUnread,
             isCc,
-            status: approved ? 'done' : isCc ? 'fyi' : 'pending'
+            status
           });
         } catch (e) { /* skip */ }
       }
