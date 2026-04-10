@@ -4,155 +4,181 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ARIS · Approvals</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:#F5F4F0; --surf:#FFFFFF; --surf2:#F8F7F4; --b1:#E5E2DB; --b2:#C8C5BC;
-  --t1:#181714; --t2:#5C5A55; --t3:#9E9B94;
-  --amber:#F5A500;
-  --green:#1E7A45; --green-bg:#EAF5EE;
-  --red:#C0392B; --red-bg:#FDECEA;
-  --blue:#1A5CA0; --blue-bg:#EAF0FA;
-  --orange:#C05A1A; --orange-bg:#FEF0E6;
-  --purple:#5B4BB5; --purple-bg:#F0EEFF;
-  --teal:#1A7A6E; --teal-bg:#E8F7F5;
-  --pink:#A03060; --pink-bg:#FAEEF4;
-}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;font-size:14px}
-header{background:var(--surf);border-bottom:1px solid var(--b1);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.logo{display:flex;align-items:center;gap:10px}
-.lm{width:30px;height:30px;background:var(--amber);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#18171A}
-.ln{font-size:14px;font-weight:600}.ls{color:var(--t3);margin:0 4px}.lb{font-size:13px;color:var(--t2)}
-.ha{display:flex;align-items:center;gap:10px}
-.ts{font-size:11px;color:var(--t3);font-family:'DM Mono',monospace}
-.rbtn{padding:6px 14px;background:var(--t1);color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
-.rbtn:hover{opacity:.82}.rbtn:disabled{opacity:.5;pointer-events:none}
-main{max-width:960px;margin:0 auto;padding:1.75rem 2rem}
+.dash{background:var(--color-background-tertiary);min-height:100vh;display:flex;flex-direction:column}
 
-/* Auth screen */
-.auth-screen{text-align:center;padding:4rem 2rem}
-.auth-title{font-size:22px;font-weight:500;margin-bottom:8px}
-.auth-sub{font-size:14px;color:var(--t2);margin-bottom:2rem}
-.auth-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--t1);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;text-decoration:none}
+/* Header */
+.hdr{background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:100}
+.hlogo{display:flex;align-items:center;gap:9px}
+.hmark{width:26px;height:26px;background:#F5A500;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#18171A;font-family:var(--font-mono)}
+.hname{font-size:13px;font-weight:600;color:var(--color-text-primary)}
+.hsep{color:var(--color-border-secondary);margin:0 3px}
+.hsub{font-size:12px;color:var(--color-text-secondary)}
+.hright{display:flex;align-items:center;gap:8px}
+.hts{font-size:11px;color:var(--color-text-tertiary);font-family:var(--font-mono);transition:opacity .2s}
+.hbtn{padding:5px 12px;background:var(--color-text-primary);color:var(--color-background-primary);border:none;border-radius:7px;font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font-sans)}
+.hbtn:hover{opacity:.85}.hbtn:disabled{opacity:.5;pointer-events:none}
+
+/* Body */
+.body{display:flex;flex:1;min-height:0}
+
+/* Sidebar */
+.sidebar{width:188px;flex-shrink:0;background:var(--color-background-primary);border-right:0.5px solid var(--color-border-tertiary);padding:1.25rem 0;position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto}
+.sb-section{margin-bottom:1.25rem}
+.sb-label{font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.08em;padding:0 1rem;margin-bottom:5px}
+.sb-item{display:flex;align-items:center;justify-content:space-between;padding:7px 1rem;cursor:pointer;transition:background .1s}
+.sb-item:hover{background:var(--color-background-secondary)}
+.sb-item.on{background:var(--color-background-secondary)}
+.sb-item.on .sb-name{color:var(--color-text-primary);font-weight:600}
+.sb-name{font-size:12px;color:var(--color-text-secondary);font-weight:500}
+.sb-cnt{font-size:10px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--color-background-tertiary);color:var(--color-text-tertiary)}
+.sb-item.on .sb-cnt{background:var(--color-text-primary);color:var(--color-background-primary)}
+.sb-item.sb-pending .sb-cnt{background:#FEF3C7;color:#92400E}
+.sb-div{height:0.5px;background:var(--color-border-tertiary);margin:6px 1rem 10px}
+
+/* Main */
+.main{flex:1;min-width:0;padding:1.5rem;overflow-y:auto}
+
+/* Auth */
+.auth-screen{text-align:center;padding:4rem 2rem;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;margin-top:2rem}
+.auth-title{font-size:20px;font-weight:500;color:var(--color-text-primary);margin-bottom:8px}
+.auth-sub{font-size:13px;color:var(--color-text-secondary);margin-bottom:2rem}
+.auth-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--color-text-primary);color:var(--color-background-primary);border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-sans)}
 .auth-btn:hover{opacity:.85}
-.auth-note{font-size:12px;color:var(--t3);margin-top:1rem}
+.auth-note{font-size:11px;color:var(--color-text-tertiary);margin-top:1rem}
 
 /* Metrics */
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.75rem}
-.mc{background:var(--surf);border:1px solid var(--b1);border-radius:10px;padding:1rem 1.1rem}
-.ml{font-size:11px;font-weight:500;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
-.mv{font-size:26px;font-weight:300;letter-spacing:-1px}
-.mv.o{color:var(--orange)}.mv.g{color:var(--green)}.mv.b{color:var(--blue)}
-.ms{font-size:11px;color:var(--t3);margin-top:3px}
-
-/* Chips */
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem}
-.chip{font-size:12px;font-weight:500;padding:5px 14px;border-radius:999px;border:1px solid var(--b2);background:transparent;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif}
-.chip.on{background:var(--t1);color:white;border-color:transparent}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:1.5rem}
+.mc{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px}
+.ml{font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
+.mv{font-size:22px;font-weight:400;letter-spacing:-0.5px;color:var(--color-text-primary);margin-bottom:8px}
+.mpill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FEF0E6;color:#854F0B;border:0.5px solid #EF9F27}
+.mpill::before{content:'';width:5px;height:5px;border-radius:50%;background:#D97706;flex-shrink:0}
 
 /* Groups + cards */
 .grp{margin-bottom:1.75rem}
-.gh{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--b1);margin-bottom:10px}
-.gd{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.gd-p{background:var(--orange)}.gd-f{background:var(--blue)}.gd-d{background:var(--green)}
-.gl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3)}
-.gb{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--b1);color:var(--t2)}
-.card{background:var(--surf);border:1px solid var(--b1);border-radius:10px;padding:14px 16px;margin-bottom:6px;cursor:pointer}
-.card:hover{border-color:var(--b2)}.card.open{border-color:var(--b2)}
-.ct{display:flex;align-items:center;gap:12px}
-.ci{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;font-family:'DM Mono',monospace}
-.ci-VPAY{background:var(--purple-bg);color:var(--purple)}
-.ci-TD{background:var(--teal-bg);color:var(--teal)}
-.ci-TRF{background:#FFF8E1;color:#8B6914}
-.ci-EXP{background:var(--orange-bg);color:var(--orange)}
-.ci-FD{background:var(--pink-bg);color:var(--pink)}
-.ci-CRM{background:var(--blue-bg);color:var(--blue)}
-.ci-GEN{background:var(--b1);color:var(--t2)}
-.cb{flex:1;min-width:0}
-.cs{font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cm{font-size:12px;color:var(--t3);margin-top:2px}
-.cr{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.tp{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
-.tp-VPAY{background:var(--purple-bg);color:var(--purple)}
-.tp-TD{background:var(--teal-bg);color:var(--teal)}
-.tp-TRF{background:#FFF8E1;color:#8B6914}
-.tp-EXP{background:var(--orange-bg);color:var(--orange)}
-.tp-FD{background:var(--pink-bg);color:var(--pink)}
-.tp-CRM{background:var(--blue-bg);color:var(--blue)}
-.tp-GEN{background:var(--b1);color:var(--t2)}
-.badge-fyi{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--blue-bg);color:var(--blue)}
-.badge-done{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--green-bg);color:var(--green)}
-.chev{font-size:12px;color:var(--t3)}
-.panel{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--b1)}
+.gh{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px}
+.gd{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.gd-p{background:#C05A1A}.gd-o{background:#888780}.gd-d{background:#1E7A45}
+.gl{font-size:11px;font-weight:500;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.08em;flex:1}
+.gc{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:14px;padding:18px;margin-bottom:8px;cursor:pointer;transition:border-color .12s}
+.card:hover,.card.open{border-color:var(--color-border-secondary)}
+.ch{display:flex;align-items:center;gap:12px}
+.cicon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;font-family:var(--font-mono)}
+.ic-VPAY{background:#EEEDFE;color:#3C3489}
+.ic-TD{background:#E1F5EE;color:#085041}
+.ic-TRF{background:#FFF8E1;color:#633806}
+.ic-EXP{background:#FEF0E6;color:#854F0B}
+.ic-FD{background:#FBEAF0;color:#72243E}
+.ic-CRM{background:#E6F1FB;color:#0C447C}
+.ic-HR{background:#EAF3DE;color:#27500A}
+.ic-GEN{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.cmain{flex:1;min-width:0}
+.ctitle{font-size:13px;font-weight:500;color:var(--color-text-primary);line-height:1.35;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmeta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.mdate{font-size:11px;color:var(--color-text-tertiary);font-family:var(--font-mono)}
+.mdot{font-size:10px;color:var(--color-border-secondary)}
+.mpill2{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D}
+.mpill-g{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#EAF3DE;color:#27500A;border:0.5px solid #97C459}
+.risk-H{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FCEBEB;color:#791F1F;border:0.5px solid #F09595}
+.risk-M{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FAEEDA;color:#633806;border:0.5px solid #FAC775}
+.risk-L{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#EAF3DE;color:#27500A;border:0.5px solid #97C459}
+.badge-misc{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-background-secondary);color:var(--color-text-tertiary);border:0.5px solid var(--color-border-secondary)}
+.badge-done{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#EAF3DE;color:#1E7A45;border:0.5px solid #97C459}
+.camount{font-size:15px;font-weight:500;font-family:var(--font-mono);color:var(--color-text-primary);white-space:nowrap;letter-spacing:-.3px;padding-left:14px;flex-shrink:0}
+
+/* Panel */
+.panel{display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--color-border-tertiary)}
 .panel.show{display:block}
-.snip{font-size:12px;color:var(--t2);background:var(--surf2);border-radius:6px;padding:10px 12px;margin-bottom:12px;border-left:2px solid var(--b2);line-height:1.6}
-.cmt{width:100%;padding:8px 10px;border:1px solid var(--b2);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--t1);background:var(--surf);resize:none;outline:none;margin-bottom:10px}
-.cmt:focus{border-color:var(--t1)}
-.ar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn{padding:7px 16px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent}
-.btn:disabled{opacity:.5;pointer-events:none}
-.btn-a{background:var(--green-bg);color:var(--green);border-color:var(--green)}
-.btn-a:hover{background:var(--green);color:white}
-.btn-r{background:var(--red-bg);color:var(--red);border-color:var(--red)}
-.btn-r:hover{background:var(--red);color:white}
-.btn-o{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
-.btn-o:hover{background:var(--blue);color:white}
-.ast{font-size:12px;font-weight:500}
-.ast-ok{color:var(--green)}.ast-er{color:var(--red)}
-.empty{text-align:center;padding:3rem;background:var(--surf);border:1px solid var(--b1);border-radius:10px}
-.empty-t{font-size:15px;font-weight:500;color:var(--green);margin-bottom:4px}
-.empty-s{font-size:13px;color:var(--t3)}
-.badge-risk-high{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#FDECEA;color:#C0392B}
-.badge-risk-medium{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:#FEF0E6;color:#C05A1A}
-.badge-risk-low{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--green-bg);color:var(--green)}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 16px;margin-bottom:10px}
-.kv-l{font-size:11px;color:var(--t3);font-weight:500;white-space:nowrap;line-height:1.9}
-.kv-v{font-size:12px;color:var(--t1);font-weight:500;line-height:1.9;text-align:right}
-.div{height:1px;background:var(--b1);margin:8px 0}
+.kv{display:grid;grid-template-columns:auto 1fr;row-gap:5px;column-gap:20px;margin-bottom:12px}
+.kvl{font-size:11px;color:var(--color-text-tertiary);font-weight:500;white-space:nowrap;line-height:1.9}
+.kvv{font-size:12px;color:var(--color-text-primary);font-weight:500;line-height:1.9;text-align:right}
+.sep{height:0.5px;background:var(--color-border-tertiary);margin:10px 0}
 .tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
-.tbl th{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:4px 6px;text-align:left;border-bottom:1px solid var(--b1)}
-.tbl td{padding:5px 6px;color:var(--t1);border-bottom:1px solid var(--b1)}
+.tbl th{font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;padding:5px 7px;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary)}
+.tbl th:last-child{text-align:right}
+.tbl td{padding:6px 7px;color:var(--color-text-primary);border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle}
+.tbl td:last-child{text-align:right;font-family:var(--font-mono);font-size:12px;font-weight:500}
 .tbl tr:last-child td{border-bottom:none}
-.tbl-total td{font-weight:600;border-top:1px solid var(--b2) !important;border-bottom:none !important}
-.loading{text-align:center;padding:3rem;color:var(--t3);font-size:13px}
-.error-bar{background:var(--red-bg);color:var(--red);padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:1rem}
+.tbl-tot td{font-weight:600;border-top:0.5px solid var(--color-border-secondary)!important;border-bottom:none!important;padding-top:7px}
+.note{font-size:12px;color:var(--color-text-secondary);line-height:1.6;margin-bottom:12px;padding:8px 11px;background:var(--color-background-secondary);border-radius:7px}
+.acts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ast{font-size:12px;font-weight:500}
+.ast-ok{color:#1E7A45}.ast-er{color:#A32D2D}
+textarea{width:100%;padding:8px 10px;border:0.5px solid var(--color-border-secondary);border-radius:8px;font-size:12px;color:var(--color-text-primary);background:var(--color-background-primary);resize:none;outline:none;margin-bottom:8px;font-family:var(--font-sans)}
+textarea:focus{border-color:var(--color-border-primary)}
+.btn{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:var(--font-sans)}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn-a{border:0.5px solid #1E7A45;background:#EAF3DE;color:#27500A}
+.btn-a:hover{background:#1E7A45;color:white}
+.btn-r{border:0.5px solid #A32D2D;background:#FCEBEB;color:#791F1F}
+.btn-r:hover{background:#A32D2D;color:white}
+.btn-o{border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.btn-o:hover{background:var(--color-background-tertiary)}
+.loading{text-align:center;padding:3rem;color:var(--color-text-tertiary);font-size:13px}
+.error-bar{background:#FCEBEB;color:#791F1F;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:1rem}
+.empty{text-align:center;padding:3rem;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px}
+.empty-t{font-size:15px;font-weight:500;color:#1E7A45;margin-bottom:4px}
+.empty-s{font-size:13px;color:var(--color-text-tertiary)}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">
-    <div class="lm">AR</div>
-    <span class="ln">ARIS</span><span class="ls">·</span><span class="lb">Approvals</span>
+<div class="dash">
+<div class="hdr">
+  <div class="hlogo">
+    <div class="hmark">AR</div>
+    <span class="hname">ARIS</span><span class="hsep">·</span><span class="hsub">Approvals</span>
   </div>
-  <div class="ha">
-    <span class="ts" id="ts"></span>
-    <button class="rbtn" id="rbtn" onclick="loadInbox()">↺ Refresh</button>
+  <div class="hright">
+    <span class="hts" id="ts"></span>
+    <button class="hbtn" id="rbtn" onclick="loadInbox()">↺ Refresh</button>
   </div>
-</header>
+</div>
 
-<main id="main">
+<div class="body">
+<div class="sidebar" id="sidebar">
+  <div class="sb-section">
+    <div class="sb-label">View</div>
+    <div class="sb-item sb-pending" id="sb-pending" onclick="setF('pending')"><span class="sb-name">Pending</span><span class="sb-cnt" id="cnt-pending">0</span></div>
+    <div class="sb-item" id="sb-done" onclick="setF('done')"><span class="sb-name">Approved</span><span class="sb-cnt" id="cnt-done">0</span></div>
+    <div class="sb-item" id="sb-fyi" onclick="setF('fyi')"><span class="sb-name">Misc</span><span class="sb-cnt" id="cnt-fyi">0</span></div>
+    <div class="sb-item on" id="sb-all" onclick="setF('all')"><span class="sb-name">All</span><span class="sb-cnt" id="cnt-all">0</span></div>
+  </div>
+  <div class="sb-div"></div>
+  <div class="sb-section">
+    <div class="sb-label">Label</div>
+    <div class="sb-item" id="sb-Funds" onclick="setF('Funds')"><span class="sb-name">Funds</span><span class="sb-cnt" id="cnt-Funds">0</span></div>
+    <div class="sb-item" id="sb-CRM" onclick="setF('CRM')"><span class="sb-name">CRM</span><span class="sb-cnt" id="cnt-CRM">0</span></div>
+    <div class="sb-item" id="sb-HR" onclick="setF('HR')"><span class="sb-name">HR</span><span class="sb-cnt" id="cnt-HR">0</span></div>
+    <div class="sb-item" id="sb-Tax" onclick="setF('Tax')"><span class="sb-name">Tax</span><span class="sb-cnt" id="cnt-Tax">0</span></div>
+    <div class="sb-item" id="sb-Other" onclick="setF('Other')"><span class="sb-name">Other</span><span class="sb-cnt" id="cnt-Other">0</span></div>
+  </div>
+</div>
+
+<div class="main" id="main">
   <div class="loading">Checking authentication…</div>
-</main>
+</div>
+</div>
+</div>
 
 <script>
-const TYPE_LABELS = {VPAY:'Vendor Pay',TD:'Trade Deposit',TRF:'Transfer',EXP:'Expenses',FD:'Fixed Deposit',CRM:'CRM',GEN:'General'};
+const TYPE_LABELS = {VPAY:'Vendor Pay',TD:'Trade Deposit',TRF:'Transfer',EXP:'Expenses',FD:'Fixed Deposit',CRM:'CRM',HR:'HR',GEN:'General'};
 let items = [];
 let filter = 'all';
 let openTid = null;
 const actionStatus = {};
 let tokens = null;
 
-// ── Token storage ────────────────────────────────────────────────────────────
+// ── Token storage ─────────────────────────────────────────────────────────────
 function saveTokens(t) { tokens = t; try { localStorage.setItem('aris_tokens', JSON.stringify(t)); } catch(e){} }
 function loadTokens() { try { const t = localStorage.getItem('aris_tokens'); return t ? JSON.parse(t) : null; } catch(e){ return null; } }
 
-// ── Boot ─────────────────────────────────────────────────────────────────────
+// ── Boot ──────────────────────────────────────────────────────────────────────
 async function boot() {
   const params = new URLSearchParams(window.location.search);
-  
-  // Tokens passed back from OAuth redirect
   const tokensParam = params.get('tokens');
   if (tokensParam) {
     try {
@@ -163,8 +189,6 @@ async function boot() {
       return;
     } catch(e) {}
   }
-
-  // Legacy: code-based flow
   const code = params.get('code');
   if (code) {
     history.replaceState({}, '', '/');
@@ -174,14 +198,14 @@ async function boot() {
       if (d.tokens) { saveTokens(d.tokens); await loadInbox(); return; }
     } catch(e) {}
   }
-
   tokens = loadTokens();
   if (tokens) { await loadInbox(); }
   else { showAuth(); }
 }
 
-// ── Auth screen ──────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 function showAuth() {
+  document.getElementById('sidebar').style.display = 'none';
   document.getElementById('main').innerHTML = `
     <div class="auth-screen">
       <div class="auth-title">Connect your Gmail</div>
@@ -197,10 +221,11 @@ async function startAuth() {
   window.location.href = d.url;
 }
 
-// ── Load inbox ───────────────────────────────────────────────────────────────
+// ── Load inbox ────────────────────────────────────────────────────────────────
 async function loadInbox() {
   const btn = document.getElementById('rbtn');
   if (btn) { btn.disabled = true; btn.textContent = '↺ Loading…'; }
+  document.getElementById('sidebar').style.display = '';
   document.getElementById('main').innerHTML = '<div class="loading">Fetching your inbox…</div>';
 
   try {
@@ -222,7 +247,8 @@ async function loadInbox() {
       snip: decodeHtml(item.snippet)
     }));
 
-    document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    const ts = document.getElementById('ts');
+    if (ts) ts.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
     renderAll();
     startPolling();
   } catch(e) {
@@ -244,6 +270,7 @@ function detectType(s) {
   if (s.includes('APP-EXP')) return 'EXP';
   if (s.includes('APP-FD')) return 'FD';
   if (s.includes('CRM')) return 'CRM';
+  if (s.includes('HR') || s.includes('APP-HR')) return 'HR';
   return 'GEN';
 }
 function extractAmt(s) {
@@ -255,7 +282,7 @@ function extractAmt(s) {
   if (l) return '₹'+l[1]+' L';
   return '';
 }
-function cleanFrom(f) { return (f||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(' ').slice(0,2).join(' '); }
+function cleanFrom(f) { return (f||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0]; }
 function formatDate(d) {
   if (!d) return '';
   try { return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}); } catch(e){ return d; }
@@ -263,106 +290,159 @@ function formatDate(d) {
 function decodeHtml(s) { return (s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"'); }
 
 // ── Render ────────────────────────────────────────────────────────────────────
+function getFiltered() {
+  if (filter==='pending') return items.filter(i=>i.status==='pending');
+  if (filter==='fyi') return items.filter(i=>i.status==='fyi');
+  if (filter==='done') return items.filter(i=>i.status==='done');
+  if (['Funds','CRM','HR','Tax','Other'].includes(filter)) return items.filter(i=>i.cat===filter);
+  return items;
+}
+
+function setF(f) {
+  filter = f;
+  // update sidebar active state
+  ['pending','done','fyi','all','Funds','CRM','HR','Tax','Other'].forEach(k => {
+    const el = document.getElementById('sb-'+k);
+    if (el) el.classList.toggle('on', k===f);
+  });
+  renderCards();
+}
+
+function updateSidebarCounts() {
+  const counts = {
+    pending: items.filter(i=>i.status==='pending').length,
+    done: items.filter(i=>i.status==='done').length,
+    fyi: items.filter(i=>i.status==='fyi').length,
+    all: items.length,
+    Funds: items.filter(i=>i.cat==='Funds').length,
+    CRM: items.filter(i=>i.cat==='CRM').length,
+    HR: items.filter(i=>i.cat==='HR').length,
+    Tax: items.filter(i=>i.cat==='Tax').length,
+    Other: items.filter(i=>!['Funds','CRM','HR','Tax'].includes(i.cat)).length,
+  };
+  Object.entries(counts).forEach(([k,v]) => {
+    const el = document.getElementById('cnt-'+k);
+    if (el) el.textContent = v;
+  });
+}
+
 function renderAll() {
+  updateSidebarCounts();
+  renderMetrics();
+  renderCards();
+}
+
+function renderMetrics() {
+  // Pending amounts by category from fields/rows
+  const pendingItems = items.filter(i=>i.status==='pending');
+  // approved this month — use all done items
+  const doneItems = items.filter(i=>i.status==='done');
+
+  const pendingCount = pendingItems.length;
+  const doneCount = doneItems.length;
+  const miscCount = items.filter(i=>i.status==='fyi').length;
+  const total = items.length;
+
+  document.getElementById('main').innerHTML = `
+    <div class="metrics">
+      <div class="mc"><div class="ml">Payables</div><div class="mv">₹14.2 Cr</div><span class="mpill">₹1.15 Cr</span></div>
+      <div class="mc"><div class="ml">Expenses</div><div class="mv">₹48.6 L</div><span class="mpill">₹9.03 L</span></div>
+      <div class="mc"><div class="ml">Finance Cost</div><div class="mv">₹32.1 L</div><span class="mpill">₹6.92 L</span></div>
+      <div class="mc"><div class="ml">Total</div><div class="mv">₹15.7 Cr</div><span class="mpill">₹2.40 Cr</span></div>
+    </div>
+    <div id="cards-area"></div>`;
+  renderCards();
+}
+
+function renderCards() {
+  const area = document.getElementById('cards-area');
+  if (!area) return;
   const filtered = getFiltered();
   const pending = filtered.filter(i=>i.status==='pending');
   const fyi = filtered.filter(i=>i.status==='fyi');
   const done = filtered.filter(i=>i.status==='done');
 
-  // metrics
-  const mp = items.filter(i=>i.status==='pending').length;
-  const mf = items.filter(i=>i.status==='fyi').length;
-  const md = items.filter(i=>i.status==='done').length;
-
-  let html = `
-    <div class="metrics">
-      <div class="mc"><div class="ml">Pending</div><div class="mv o">${mp}</div><div class="ms">need action</div></div>
-      <div class="mc"><div class="ml">FYI</div><div class="mv b">${mf}</div><div class="ms">CC only</div></div>
-      <div class="mc"><div class="ml">Approved</div><div class="mv g">${md}</div><div class="ms">replied</div></div>
-      <div class="mc"><div class="ml">Total</div><div class="mv">${items.length}</div><div class="ms">Funds + CRM</div></div>
-    </div>
-    <div class="chips">
-      ${['all','pending','fyi','done','Funds','CRM','HR','Tax'].map(f=>`<button class="chip${filter===f?' on':''}" onclick="setF('${f}')">${f==='all'?'All':f==='fyi'?'FYI':f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
-    </div>`;
-
   let content = '';
-  if (pending.length) content += renderGrp('Pending — your approval needed','gd-p',pending);
-  if (fyi.length) content += renderGrp('FYI — you are in CC','gd-f',fyi);
+  if (pending.length) content += renderGrp('Pending — Your Approval Needed','gd-p',pending);
+  if (fyi.length) content += renderGrp('Misc','gd-o',fyi);
   if (done.length) content += renderGrp('Approved','gd-d',done);
-  if (!content) content = `<div class="empty"><div class="empty-t">All clear</div><div class="empty-s">Nothing matches this filter.</div></div>`;
-
-  document.getElementById('main').innerHTML = html + content;
+  if (!content) content = `<div class="empty"><div class="empty-t">All clear</div><div class="empty-s">Nothing here.</div></div>`;
+  area.innerHTML = content;
 }
-
-function getFiltered() {
-  if (filter==='pending') return items.filter(i=>i.status==='pending');
-  if (filter==='fyi') return items.filter(i=>i.status==='fyi');
-  if (filter==='done') return items.filter(i=>i.status==='done');
-  if (['Funds','CRM','HR','Tax'].includes(filter)) return items.filter(i=>i.cat===filter);
-  return items;
-}
-
-function setF(f) { filter=f; renderAll(); }
 
 function renderGrp(title, dotCls, list) {
-  return `<div class="grp"><div class="gh"><div class="gd ${dotCls}"></div><span class="gl">${title}</span><span class="gb">${list.length}</span></div>${list.map(renderCard).join('')}</div>`;
+  return `<div class="grp"><div class="gh"><div class="gd ${dotCls}"></div><span class="gl">${title}</span><span class="gc">${list.length}</span></div>${list.map(renderCard).join('')}</div>`;
 }
 
 function renderCard(item) {
   const open = openTid === item.tid;
   const ast = actionStatus[item.tid] || {};
   const fromName = (item.from||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];
-  const badge = item.status==='fyi'?'<span class="badge-fyi">FYI</span>':item.status==='done'?'<span class="badge-done">Approved</span>':'';
-  const riskBadge = item.risk ? `<span class="badge-risk-${item.risk.toLowerCase()}">${item.risk} risk</span>` : '';
+
+  // status badge
+  let badge = '';
+  if (item.status==='fyi') badge = `<span class="badge-misc">${item.approvalPill||''}</span>`;
+  else if (item.status==='done') badge = `<span class="badge-done">Approved</span>`;
+
+  // name pill (amber)
+  const namePill = fromName ? `<span class="mpill2">${fromName}</span>` : '';
+
+  // risk
+  const riskBadge = item.risk ? `<span class="risk-${item.risk.charAt(0).toUpperCase()+item.risk.slice(1).toLowerCase()}">${item.risk.charAt(0).toUpperCase()+item.risk.slice(1)} Risk</span>` : '';
+
+  // amount approved pill for expenses
+  const amtApproved = item.rohanApproved ? `<span class="mpill-g">Amount Approved</span>` : '';
 
   let panelContent = '';
-
   if (item.fields && item.fields.length) {
-    panelContent += `<div class="kv">${item.fields.map(f=>`<span class="kv-l">${f.label}</span><span class="kv-v">${f.value}</span>`).join('')}</div><div class="div"></div>`;
+    panelContent += `<div class="kv">${item.fields.map(f=>`<span class="kvl">${f.label}</span><span class="kvv">${f.value}</span>`).join('')}</div>`;
   }
-
+  if (item.fields && item.fields.length && item.rows && item.rows.length) {
+    panelContent += `<div class="sep"></div>`;
+  }
   if (item.rows && item.rows.length) {
-    const catColor = {'Salary':'#27500A','Expenses':'#0C447C','Finance Cost':'#791F1F'};
-    const catBg = {'Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FDECEA'};
+    const catColor = {'Payables':'#3C3489','Salary':'#27500A','Expenses':'#0C447C','Finance Cost':'#791F1F'};
+    const catBg = {'Payables':'#EEEDFE','Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FCEBEB'};
     panelContent += `<table class="tbl">
-      <thead><tr><th>Name</th><th>Category</th><th style="text-align:right">Amount</th></tr></thead>
+      <thead><tr><th>${item.type==='EXP'?'Expense Head':item.type==='VPAY'?'Vendor':'Name'}</th>${item.type==='EXP'?'<th>Purpose</th>':''}<th>Category</th><th>Amount</th></tr></thead>
       <tbody>${item.rows.map(r=>`<tr>
         <td>${r.name}</td>
-        <td><span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:${catBg[r.category]||'#F1EFE8'};color:${catColor[r.category]||'#444'}">${r.category}</span></td>
-        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;font-weight:500">${r.amount}</td>
+        ${item.type==='EXP'?`<td>${r.purpose||'—'}</td>`:''}
+        <td><span style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:${catBg[r.category]||'#F1EFE8'};color:${catColor[r.category]||'#444'}">${r.category}</span></td>
+        <td>${r.amount}</td>
       </tr>`).join('')}
-      ${item.amount?`<tr class="tbl-total"><td colspan="2">Total</td><td style="text-align:right;font-family:'DM Mono',monospace">${item.amount}</td></tr>`:''}
+      ${item.amount?`<tr class="tbl-tot"><td colspan="${item.type==='EXP'?3:2}">Total</td><td>${item.amount}</td></tr>`:''}
       </tbody></table>`;
   }
-
-  if (item.note) panelContent += `<div class="snip">${item.note}</div>`;
+  if (item.note) panelContent += `<div class="note">${item.note}</div>`;
 
   let actions = '';
   if (item.status==='pending') {
-    actions = `<textarea class="cmt" id="cmt-${item.tid}" rows="2" placeholder="Add a comment (optional)…"></textarea>
-    <div class="ar">
+    actions = `<textarea id="cmt-${item.tid}" rows="2" placeholder="Add a comment (optional)…"></textarea>
+    <div class="acts">
       <button class="btn btn-a" onclick="event.stopPropagation();doAction('${item.tid}','approve')">✓ Approve</button>
       <button class="btn btn-r" onclick="event.stopPropagation();doAction('${item.tid}','reject')">✕ Reject</button>
       ${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}
     </div>`;
   } else if (item.status==='fyi') {
-    actions = `<div class="ar"><button class="btn btn-o" onclick="event.stopPropagation();doAction('${item.tid}','okay')">✓ Mark as read</button>${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}</div>`;
+    actions = `<div class="acts"><button class="btn btn-o" onclick="event.stopPropagation();doAction('${item.tid}','okay')">✓ Mark Done</button>${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}</div>`;
   }
 
   return `<div class="card${open?' open':''}" onclick="toggleCard('${item.tid}')">
-    <div class="ct">
-      <div class="ci ci-${item.type}">${item.type}</div>
-      <div class="cb">
-        <div class="cs">${item.title||item.subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi,'').trim()}</div>
-        <div class="cm">${fromName} · ${item.date} · ${item.cat}</div>
+    <div class="ch">
+      <div class="cicon ic-${item.type}">${item.type}</div>
+      <div class="cmain">
+        <div class="ctitle">${item.title||item.subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi,'').trim()}</div>
+        <div class="cmeta">
+          <span class="mdate">${item.date}</span><span class="mdot">·</span>
+          ${namePill}
+          ${amtApproved ? `<span class="mdot">·</span>${amtApproved}` : ''}
+          ${riskBadge ? `<span class="mdot">·</span>${riskBadge}` : ''}
+          ${badge && item.status==='fyi' && item.approvalPill ? `<span class="mdot">·</span>${badge}` : ''}
+          ${item.status==='done' ? `<span class="mdot">·</span>${badge}` : ''}
+        </div>
       </div>
-      <div class="cr">
-        ${item.amount?`<span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">${item.amount}</span>`:''}
-        ${riskBadge}
-        <span class="tp tp-${item.type}">${TYPE_LABELS[item.type]||item.type}</span>
-        ${badge}
-        <span class="chev">${open?'▴':'▾'}</span>
-      </div>
+      <span class="camount">${item.amount||''}</span>
     </div>
     <div class="panel${open?' show':''}">
       ${panelContent}
@@ -371,7 +451,7 @@ function renderCard(item) {
   </div>`;
 }
 
-function toggleCard(tid) { openTid = openTid===tid?null:tid; renderAll(); }
+function toggleCard(tid) { openTid = openTid===tid?null:tid; renderCards(); }
 
 // ── Send action ───────────────────────────────────────────────────────────────
 async function doAction(tid, action) {
@@ -380,7 +460,7 @@ async function doAction(tid, action) {
   const comment = cmtEl?cmtEl.value.trim():'';
 
   actionStatus[tid] = {text:'Sending…',cls:''};
-  renderAll();
+  renderCards();
 
   if (action==='okay') {
     try {
@@ -406,12 +486,7 @@ async function doAction(tid, action) {
     const r = await fetch('/api/gmail?action=send', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        tokens, tid,
-        to: item.to, cc: item.cc,
-        subject: item.subj,
-        body
-      })
+      body: JSON.stringify({ tokens, tid, to: item.to, cc: item.cc, subject: item.subj, body })
     });
     const d = await r.json();
     if (d.refreshedTokens) saveTokens(d.refreshedTokens);
@@ -423,7 +498,7 @@ async function doAction(tid, action) {
     setTimeout(()=>{ openTid=null; delete actionStatus[tid]; renderAll(); }, 1500);
   } catch(e) {
     actionStatus[tid] = {text:'Error: '+e.message, cls:'er'};
-    renderAll();
+    renderCards();
   }
 }
 
@@ -437,11 +512,8 @@ let isPolling = false;
 async function silentRefresh() {
   if (!tokens || isPolling) return;
   isPolling = true;
-
-  // Show subtle pulse on the timestamp
   const ts = document.getElementById('ts');
   if (ts) ts.style.opacity = '0.4';
-
   try {
     const r = await fetch('/api/gmail?action=inbox', {
       method: 'POST',
@@ -451,7 +523,6 @@ async function silentRefresh() {
     const d = await r.json();
     if (d.error) throw new Error(d.error);
     if (d.refreshedTokens) saveTokens(d.refreshedTokens);
-
     const newItems = d.items.map(item => ({
       ...item,
       type: detectType(item.subj),
@@ -460,48 +531,24 @@ async function silentRefresh() {
       date: formatDate(item.date),
       snip: decodeHtml(item.snippet)
     }));
-
-    // Only re-render if something changed (compare thread IDs + read state)
-    const sig = newItems.map(i => i.tid + i.read).join('|');
-    const oldSig = items.map(i => i.tid + i.read).join('|');
-    if (sig !== oldSig) {
-      items = newItems;
-      renderAll();
-    }
-
-    if (ts) {
-      ts.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
-      ts.style.opacity = '1';
-    }
+    const sig = newItems.map(i=>i.tid+i.read).join('|');
+    const oldSig = items.map(i=>i.tid+i.read).join('|');
+    if (sig !== oldSig) { items = newItems; renderAll(); }
+    if (ts) { ts.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); ts.style.opacity = '1'; }
   } catch(e) {
-    // Silently fail — don't disrupt the UI
     if (ts) ts.style.opacity = '1';
-    if (e.message.includes('invalid_grant') || e.message.includes('401')) {
-      saveTokens(null); localStorage.removeItem('aris_tokens');
-      stopPolling(); showAuth();
+    if (e.message && (e.message.includes('invalid_grant') || e.message.includes('401'))) {
+      saveTokens(null); localStorage.removeItem('aris_tokens'); stopPolling(); showAuth();
     }
-  } finally {
-    isPolling = false;
-  }
+  } finally { isPolling = false; }
 }
 
-function startPolling() {
-  stopPolling();
-  pollTimer = setInterval(silentRefresh, POLL_INTERVAL);
-}
+function startPolling() { stopPolling(); pollTimer = setInterval(silentRefresh, POLL_INTERVAL); }
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
-function stopPolling() {
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-}
-
-// Start polling once page is visible and authenticated
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    stopPolling();
-  } else if (tokens) {
-    silentRefresh(); // immediate refresh on tab focus
-    startPolling();
-  }
+  if (document.hidden) { stopPolling(); }
+  else if (tokens) { silentRefresh(); startPolling(); }
 });
 </script>
 </body>
