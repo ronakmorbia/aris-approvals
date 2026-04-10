@@ -80,7 +80,7 @@
 .cmeta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .mdate{font-size:11px;color:var(--color-text-tertiary);font-family:var(--font-mono)}
 .mdot{font-size:10px;color:var(--color-border-secondary)}
-.mpill2{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D}
+.mpill2{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,0.06);color:#5C5A55;border:0.5px solid #C8C5BC}
 .mpill-g{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#EAF3DE;color:#27500A;border:0.5px solid #97C459}
 .risk-H{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FCEBEB;color:#791F1F;border:0.5px solid #F09595}
 .risk-M{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FAEEDA;color:#633806;border:0.5px solid #FAC775}
@@ -373,6 +373,17 @@ function renderCards() {
 function renderGrp(title, dotCls, list) {
   return `<div class="grp"><div class="gh"><div class="gd ${dotCls}"></div><span class="gl">${title}</span><span class="gc">${list.length}</span></div>${list.map(renderCard).join('')}</div>`;
 }
+
+const ICONS = {
+  VPAY: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="8.5" rx="1.5"/><path d="M1.5 7h13M4.5 10.5h2"/></svg>`,
+  TD:   `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7.5h6M5 10h4"/><path d="M5.5 3V1.5M10.5 3V1.5"/></svg>`,
+  TRF:  `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h10"/><path d="M10 2.5l3 2.5-3 2.5"/><path d="M13 11H3"/><path d="M6 8.5L3 11l3 2.5"/></svg>`,
+  EXP:  `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5L14 4.5v7L8 14.5 2 11.5v-7L8 1.5z"/><path d="M8 1.5v13M2 4.5l6 3 6-3"/></svg>`,
+  FD:   `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6h12M5.5 9.5h5M5.5 12h3"/></svg>`,
+  CRM:  `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 10c0 2-2.5 3.5-5.5 3.5S2.5 12 2.5 10s2.5-3.5 5.5-3.5 5.5 1.5 5.5 3.5z"/><path d="M13.5 10V6c0-2-2.5-3.5-5.5-3.5S2.5 4 2.5 6v4"/></svg>`,
+  HR:   `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5" r="2.5"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>`,
+  GEN:  `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h6M5 11h4"/></svg>`
+};
 
 function renderCard(item) {
   const open = openTid === item.tid;
