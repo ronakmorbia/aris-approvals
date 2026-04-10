@@ -6,57 +6,50 @@
 <title>ARIS · Approvals</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  html, body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
-</style>
-
-<style>
 *{box-sizing:border-box;margin:0;padding:0}
-.dash{background:#EDECEA;min-height:100vh;display:flex;flex-direction:column}
-.hdr{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.hlogo{display:flex;align-items:center;gap:9px}
-.hmark{width:26px;height:26px;background:#F5A500;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#18171A;font-family:'DM Mono', 'Courier New', monospace}
-.hname{font-size:13px;font-weight:600;color:#18171A}
-.hsep{color:#C8C5BC;margin:0 3px}
-.hsub{font-size:12px;color:#5C5A55}
-.hright{display:flex;align-items:center;gap:8px}
-.hts{font-size:11px;color:#9E9B94;font-family:'DM Mono', 'Courier New', monospace}
-.hbtn{padding:5px 12px;background:#18171A;color:#FFFFFF;border:none;border-radius:7px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif}
-.body{display:flex;flex:1;min-height:0}
+html,body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#EDECEA;color:#18171A;min-height:100vh;font-size:14px}
 
-/* Sidebar */
-.sidebar{width:188px;flex-shrink:0;background:#FFFFFF;border-right:0.5px solid #E5E2DB;padding:1.25rem 0}
-.sb-section{margin-bottom:1.25rem}
-.sb-label{font-size:10px;font-weight:600;color:#9E9B94;text-transform:uppercase;letter-spacing:.08em;padding:0 1rem;margin-bottom:5px}
-.sb-item{display:flex;align-items:center;justify-content:space-between;padding:7px 1rem;cursor:pointer;transition:background .1s}
-.sb-item:hover{background:#F5F4F0}
-.sb-item.on{background:#F5F4F0}
-.sb-item.on .sb-name{color:#18171A;font-weight:600}
-.sb-name{font-size:12px;color:#5C5A55;font-weight:500}
-.sb-cnt{font-size:10px;font-weight:600;padding:1px 7px;border-radius:999px;background:#EDECEA;color:#9E9B94}
-.sb-item.on .sb-cnt{background:#18171A;color:#FFFFFF}
-.sb-div{height:0.5px;background:#E5E2DB;margin:6px 1rem 10px}
+/* Header */
+header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:10px}
+.lm{width:30px;height:30px;background:#F5A500;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#18171A;font-family:'DM Mono',monospace}
+.ln{font-size:14px;font-weight:600}.ls{color:#9E9B94;margin:0 4px}.lb{font-size:13px;color:#5C5A55}
+.ha{display:flex;align-items:center;gap:10px}
+.ts{font-size:11px;color:#9E9B94;font-family:'DM Mono',monospace}
+.rbtn{padding:6px 14px;background:#18171A;color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
+.rbtn:hover{opacity:.85}.rbtn:disabled{opacity:.5;pointer-events:none}
 
-/* Main */
-.main{flex:1;min-width:0;padding:1.5rem;overflow-y:auto}
+/* Main centred layout */
+main{max-width:900px;margin:0 auto;padding:1.75rem 2rem}
 
 /* Metrics */
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:1.5rem}
-.mc{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:10px;padding:14px 14px}
-.ml{font-size:10px;font-weight:600;color:#9E9B94;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
-.mv{font-size:22px;font-weight:400;letter-spacing:-0.5px;color:#18171A;margin-bottom:8px}
-.mpill{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FEF0E6;color:#854F0B;border:0.5px solid #EF9F27}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
+.mc{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:10px;padding:1rem 1.1rem}
+.ml{font-size:11px;font-weight:500;color:#9E9B94;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.mv{font-size:26px;font-weight:300;letter-spacing:-1px;color:#18171A;margin-bottom:6px}
+.mpill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FEF0E6;color:#854F0B;border:0.5px solid #EF9F27;font-family:'DM Mono',monospace}
+.mpill::before{content:'';width:5px;height:5px;border-radius:50%;background:#D97706;flex-shrink:0}
 
-/* Groups + cards */
+/* Filters */
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.5rem}
+.chip{font-size:12px;font-weight:500;padding:5px 14px;border-radius:999px;border:0.5px solid #C8C5BC;background:transparent;color:#5C5A55;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .1s}
+.chip:hover{background:#F5F4F0}
+.chip.on{background:#18171A;color:white;border-color:#18171A}
+
+/* Groups */
 .grp{margin-bottom:1.75rem}
-.gh{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:0.5px solid #E5E2DB;margin-bottom:12px}
+.gh{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:0.5px solid #E5E2DB;margin-bottom:10px}
 .gd{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .gd-p{background:#C05A1A}.gd-o{background:#888780}.gd-d{background:#1E7A45}
 .gl{font-size:11px;font-weight:500;color:#9E9B94;text-transform:uppercase;letter-spacing:.08em;flex:1}
 .gc{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;background:#F5F4F0;color:#5C5A55}
-.card{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:14px;padding:18px;margin-bottom:8px;cursor:pointer;transition:border-color .12s}
+
+/* Cards — fixed width, no stretching */
+.card{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:14px;padding:18px;margin-bottom:8px;cursor:pointer;transition:border-color .12s;width:100%}
 .card:hover,.card.open{border-color:#C8C5BC}
-.ch{display:flex;align-items:center;gap:12px}
-.cicon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.cicon svg{width:16px;height:16px}
+.ch{display:flex;align-items:center;gap:12px;width:100%;min-width:0}
+.cicon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cicon svg{width:16px;height:16px}
 .ic-VPAY{background:#EEEDFE;color:#3C3489}
 .ic-TD{background:#E1F5EE;color:#085041}
 .ic-TRF{background:#FFF8E1;color:#633806}
@@ -64,15 +57,19 @@
 .ic-FD{background:#FBEAF0;color:#72243E}
 .ic-CRM{background:#E6F1FB;color:#0C447C}
 .ic-HR{background:#EAF3DE;color:#27500A}
-.cmain{flex:1;min-width:0}
-.ctitle{font-size:13px;font-weight:500;color:#18171A;line-height:1.35;margin-bottom:6px}
+.ic-GEN{background:#F5F4F0;color:#5C5A55}
+.cmain{flex:1;min-width:0;overflow:hidden}
+.ctitle{font-size:13px;font-weight:500;color:#18171A;line-height:1.35;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cmeta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.mdate{font-size:11px;color:#9E9B94}
+.mdate{font-size:11px;color:#9E9B94;font-family:'DM Mono',monospace}
 .mdot{font-size:10px;color:#C8C5BC}
 .mpill2{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#F5F4F0;color:#5C5A55;border:0.5px solid #E5E2DB}
 .mpill-g{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#EAF3DE;color:#27500A;border:0.5px solid #97C459}
 .risk-H{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FCEBEB;color:#791F1F;border:0.5px solid #F09595}
-.camount{font-size:15px;font-weight:500;font-family:'DM Mono', 'Courier New', monospace;color:#18171A;white-space:nowrap;letter-spacing:-.3px;padding-left:14px;flex-shrink:0}
+.risk-M{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FAEEDA;color:#633806;border:0.5px solid #FAC775}
+.camount{font-size:15px;font-weight:500;font-family:'DM Mono',monospace;color:#18171A;white-space:nowrap;letter-spacing:-.3px;padding-left:14px;flex-shrink:0}
+
+/* Panel */
 .panel{display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid #E5E2DB}
 .panel.show{display:block}
 .kv{display:grid;grid-template-columns:auto 1fr;row-gap:5px;column-gap:20px;margin-bottom:12px}
@@ -83,7 +80,7 @@
 .tbl th{font-size:10px;font-weight:600;color:#9E9B94;text-transform:uppercase;letter-spacing:.05em;padding:5px 7px;text-align:left;border-bottom:0.5px solid #E5E2DB}
 .tbl th:last-child{text-align:right}
 .tbl td{padding:6px 7px;color:#18171A;border-bottom:0.5px solid #E5E2DB;vertical-align:middle}
-.tbl td:last-child{text-align:right;font-family:'DM Mono', 'Courier New', monospace;font-size:12px;font-weight:500}
+.tbl td:last-child{text-align:right;font-family:'DM Mono',monospace;font-size:12px;font-weight:500}
 .tbl tr:last-child td{border-bottom:none}
 .tbl-tot td{font-weight:600;border-top:0.5px solid #C8C5BC!important;border-bottom:none!important;padding-top:7px}
 .cat-pay{font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:#EEEDFE;color:#3C3489}
@@ -92,309 +89,283 @@
 .cat-fin{font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:#FCEBEB;color:#791F1F}
 .note{font-size:12px;color:#5C5A55;line-height:1.6;margin-bottom:12px}
 .acts{display:flex;gap:6px;align-items:center}
-textarea{width:100%;padding:8px 10px;border:0.5px solid #C8C5BC;border-radius:8px;font-size:12px;color:#18171A;background:#FFFFFF;resize:none;outline:none;margin-bottom:8px;font-family:'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif}
-.ba{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;border:0.5px solid #1E7A45;background:#EAF3DE;color:#27500A;cursor:pointer}
-.br{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;border:0.5px solid #A32D2D;background:#FCEBEB;color:#791F1F;cursor:pointer}
-.bo{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;border:0.5px solid #C8C5BC;background:#F5F4F0;color:#5C5A55;cursor:pointer}
+textarea{width:100%;padding:8px 10px;border:0.5px solid #C8C5BC;border-radius:8px;font-size:12px;color:#18171A;background:#FFFFFF;resize:none;outline:none;margin-bottom:8px;font-family:'DM Sans',sans-serif}
+textarea:focus{border-color:#9E9B94}
+.ba{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;border:0.5px solid #1E7A45;background:#EAF3DE;color:#27500A;cursor:pointer;font-family:'DM Sans',sans-serif}
+.ba:hover{background:#1E7A45;color:white}
+.br{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;border:0.5px solid #A32D2D;background:#FCEBEB;color:#791F1F;cursor:pointer;font-family:'DM Sans',sans-serif}
+.br:hover{background:#A32D2D;color:white}
+.bo{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;border:0.5px solid #C8C5BC;background:#F5F4F0;color:#5C5A55;cursor:pointer;font-family:'DM Sans',sans-serif}
+.bo:hover{background:#E5E2DB}
+.loading{text-align:center;padding:3rem;color:#9E9B94;font-size:13px}
+.error-bar{background:#FCEBEB;color:#791F1F;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:1rem}
+.empty{text-align:center;padding:3rem;background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:12px}
+.empty-t{font-size:15px;font-weight:500;color:#1E7A45;margin-bottom:4px}
+.empty-s{font-size:13px;color:#9E9B94}
+.ast{font-size:12px;font-weight:500}
+.ast-ok{color:#1E7A45}.ast-er{color:#A32D2D}
+.badge-done{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#EAF3DE;color:#1E7A45;border:0.5px solid #97C459}
+.auth-screen{text-align:center;padding:4rem 2rem;background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:12px;margin-top:2rem}
+.auth-title{font-size:20px;font-weight:500;margin-bottom:8px}
+.auth-sub{font-size:13px;color:#5C5A55;margin-bottom:2rem}
+.auth-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:#18171A;color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
+.auth-btn:hover{opacity:.85}
+.auth-note{font-size:11px;color:#9E9B94;margin-top:1rem}
 </style>
+</head>
+<body>
 
-<div class="dash">
-<div class="hdr">
-  <div class="hlogo">
-    <div class="hmark">AR</div>
-    <span class="hname">ARIS</span><span class="hsep">·</span><span class="hsub">Approvals</span>
+<header>
+  <div class="logo">
+    <div class="lm">AR</div>
+    <span class="ln">ARIS</span><span class="ls">·</span><span class="lb">Approvals</span>
   </div>
-  <div class="hright">
-    <span class="hts">09 Apr · 09:30</span>
-    <button class="hbtn">↺ Refresh</button>
+  <div class="ha">
+    <span class="ts" id="ts"></span>
+    <button class="rbtn" id="rbtn" onclick="loadInbox()">↺ Refresh</button>
   </div>
-</div>
+</header>
 
-<div class="body">
-<div class="sidebar">
+<main id="main">
+  <div class="loading">Checking authentication…</div>
+</main>
 
-  <div class="sb-section">
-    <div class="sb-label">View</div>
-    <div class="sb-item"><span class="sb-name">Pending</span><span class="sb-cnt">4</span></div>
-    <div class="sb-item"><span class="sb-name">Approved</span><span class="sb-cnt">32</span></div>
-    <div class="sb-item"><span class="sb-name">Misc</span><span class="sb-cnt">3</span></div>
-    <div class="sb-item on"><span class="sb-name">All</span><span class="sb-cnt">39</span></div>
-  </div>
+<script>
+const TYPE_LABELS = {VPAY:'Vendor Pay',TD:'Trade Deposit',TRF:'Transfer',EXP:'Expenses',FD:'Fixed Deposit',CRM:'CRM',HR:'HR',GEN:'General'};
+const ICONS = {
+  VPAY:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="8.5" rx="1.5"/><path d="M1.5 7h13M4.5 10.5h2"/></svg>`,
+  TD:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7.5h6M5 10h4"/><path d="M5.5 3V1.5M10.5 3V1.5"/></svg>`,
+  TRF:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h10"/><path d="M10 2.5l3 2.5-3 2.5"/><path d="M13 11H3"/><path d="M6 8.5L3 11l3 2.5"/></svg>`,
+  EXP:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5L14 4.5v7L8 14.5 2 11.5v-7L8 1.5z"/><path d="M8 1.5v13M2 4.5l6 3 6-3"/></svg>`,
+  FD:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6h12M5.5 9.5h5M5.5 12h3"/></svg>`,
+  CRM:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 10c0 2-2.5 3.5-5.5 3.5S2.5 12 2.5 10s2.5-3.5 5.5-3.5 5.5 1.5 5.5 3.5z"/><path d="M13.5 10V6c0-2-2.5-3.5-5.5-3.5S2.5 4 2.5 6v4"/></svg>`,
+  HR:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5" r="2.5"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>`,
+  GEN:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h6M5 11h4"/></svg>`
+};
 
-  <div class="sb-div"></div>
+let items = [], filter = 'all', openTid = null;
+const actionStatus = {};
+let tokens = null;
 
-  <div class="sb-section">
-    <div class="sb-label">Label</div>
-    <div class="sb-item"><span class="sb-name">Funds</span><span class="sb-cnt">28</span></div>
-    <div class="sb-item"><span class="sb-name">CRM</span><span class="sb-cnt">6</span></div>
-    <div class="sb-item"><span class="sb-name">HR</span><span class="sb-cnt">2</span></div>
-    <div class="sb-item"><span class="sb-name">Tax</span><span class="sb-cnt">1</span></div>
-    <div class="sb-item"><span class="sb-name">Other</span><span class="sb-cnt">2</span></div>
-  </div>
+function saveTokens(t){tokens=t;try{localStorage.setItem('aris_tokens',JSON.stringify(t));}catch(e){}}
+function loadTokens(){try{const t=localStorage.getItem('aris_tokens');return t?JSON.parse(t):null;}catch(e){return null;}}
 
-</div>
+async function boot(){
+  const params=new URLSearchParams(window.location.search);
+  const tokensParam=params.get('tokens');
+  if(tokensParam){try{const t=JSON.parse(decodeURIComponent(tokensParam));saveTokens(t);history.replaceState({},'','/');await loadInbox();return;}catch(e){}}
+  const code=params.get('code');
+  if(code){history.replaceState({},'','/');try{const r=await fetch('/api/gmail?action=auth-callback&code='+encodeURIComponent(code));const d=await r.json();if(d.tokens){saveTokens(d.tokens);await loadInbox();return;}}catch(e){}}
+  tokens=loadTokens();
+  if(tokens){await loadInbox();}else{showAuth();}
+}
 
-<div class="main">
+function showAuth(){
+  document.getElementById('main').innerHTML=`
+    <div class="auth-screen">
+      <div class="auth-title">Connect your Gmail</div>
+      <div class="auth-sub">Sign in with ronak@aris.in to access your approval inbox</div>
+      <button class="auth-btn" onclick="startAuth()">Sign in with Google</button>
+      <div class="auth-note">You'll only need to do this once.</div>
+    </div>`;}
 
-  <!-- Metrics — amount approved this month, pill = pending amount only -->
-  <div class="metrics">
-    <div class="mc">
-      <div class="ml">Payables</div>
-      <div class="mv">₹14.2 Cr</div>
-      <span class="mpill">₹1.15 Cr</span>
+async function startAuth(){const r=await fetch('/api/gmail?action=auth-url');const d=await r.json();window.location.href=d.url;}
+
+async function loadInbox(){
+  const btn=document.getElementById('rbtn');
+  if(btn){btn.disabled=true;btn.textContent='↺ Loading…';}
+  document.getElementById('main').innerHTML='<div class="loading">Fetching your inbox…</div>';
+  try{
+    const r=await fetch('/api/gmail?action=inbox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokens})});
+    const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    if(d.refreshedTokens)saveTokens(d.refreshedTokens);
+    items=d.items.map(item=>({...item,type:detectType(item.subj),amt:extractAmt(item.subj),from:cleanFrom(item.from),date:formatDate(item.date),snip:decodeHtml(item.snippet)}));
+    const ts=document.getElementById('ts');
+    if(ts)ts.textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    renderAll();
+    startPolling();
+  }catch(e){
+    if(e.message.includes('invalid_grant')||e.message.includes('401')){saveTokens(null);localStorage.removeItem('aris_tokens');showAuth();return;}
+    document.getElementById('main').innerHTML=`<div class="error-bar">Error: ${e.message}</div>`;
+  }finally{if(btn){btn.disabled=false;btn.textContent='↺ Refresh';}}
+}
+
+function detectType(s){s=(s||'').toUpperCase();if(s.includes('APP-VPAY'))return'VPAY';if(s.includes('APP-TD'))return'TD';if(s.includes('APP-TRF'))return'TRF';if(s.includes('APP-EXP'))return'EXP';if(s.includes('APP-FD'))return'FD';if(s.includes('CRM'))return'CRM';if(s.includes('HR')||s.includes('APP-HR'))return'HR';return'GEN';}
+function extractAmt(s){const cr=(s||'').match(/(\d+\.?\d*)\s*Cr/i);if(cr)return'₹'+cr[1]+' Cr';const rs=(s||'').match(/Rs\.?\s*([\d,]+)/i);if(rs)return'₹'+rs[1];const l=(s||'').match(/(\d+\.?\d*)\s*Lacs?/i);if(l)return'₹'+l[1]+' L';return'';}
+function cleanFrom(f){return(f||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];}
+function formatDate(d){if(!d)return'';try{return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});}catch(e){return d;}}
+function decodeHtml(s){return(s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');}
+
+function getFiltered(){
+  if(filter==='pending')return items.filter(i=>i.status==='pending');
+  if(filter==='misc')return items.filter(i=>i.status==='fyi');
+  if(filter==='approved')return items.filter(i=>i.status==='done');
+  if(['Funds','CRM','HR','Tax'].includes(filter))return items.filter(i=>i.cat===filter);
+  return items;
+}
+
+function setFilter(f){
+  filter=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));
+  renderCards();
+}
+
+function renderAll(){
+  const pending=items.filter(i=>i.status==='pending').length;
+  const misc=items.filter(i=>i.status==='fyi').length;
+  const approved=items.filter(i=>i.status==='done').length;
+  const funds=items.filter(i=>i.cat==='Funds').length;
+  const crm=items.filter(i=>i.cat==='CRM').length;
+  const hr=items.filter(i=>i.cat==='HR').length;
+  const tax=items.filter(i=>i.cat==='Tax').length;
+
+  document.getElementById('main').innerHTML=`
+    <div class="metrics">
+      <div class="mc"><div class="ml">Payables</div><div class="mv">₹14.2 Cr</div><span class="mpill">₹1.15 Cr</span></div>
+      <div class="mc"><div class="ml">Expenses</div><div class="mv">₹48.6 L</div><span class="mpill">₹9.03 L</span></div>
+      <div class="mc"><div class="ml">Finance Cost</div><div class="mv">₹32.1 L</div><span class="mpill">₹6.92 L</span></div>
+      <div class="mc"><div class="ml">Total</div><div class="mv">₹15.7 Cr</div><span class="mpill">₹2.40 Cr</span></div>
     </div>
-    <div class="mc">
-      <div class="ml">Expenses</div>
-      <div class="mv">₹48.6 L</div>
-      <span class="mpill">₹9.03 L</span>
+    <div class="filters">
+      <div class="chip on" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>
+      <div class="chip" data-f="pending" onclick="setFilter('pending')">Pending <span style="font-size:10px;opacity:.6">${pending}</span></div>
+      <div class="chip" data-f="approved" onclick="setFilter('approved')">Approved <span style="font-size:10px;opacity:.6">${approved}</span></div>
+      <div class="chip" data-f="misc" onclick="setFilter('misc')">Misc <span style="font-size:10px;opacity:.6">${misc}</span></div>
+      <div class="chip" data-f="Funds" onclick="setFilter('Funds')">Funds <span style="font-size:10px;opacity:.6">${funds}</span></div>
+      <div class="chip" data-f="CRM" onclick="setFilter('CRM')">CRM <span style="font-size:10px;opacity:.6">${crm}</span></div>
+      <div class="chip" data-f="HR" onclick="setFilter('HR')">HR <span style="font-size:10px;opacity:.6">${hr}</span></div>
+      <div class="chip" data-f="Tax" onclick="setFilter('Tax')">Tax <span style="font-size:10px;opacity:.6">${tax}</span></div>
     </div>
-    <div class="mc">
-      <div class="ml">Finance Cost</div>
-      <div class="mv">₹32.1 L</div>
-      <span class="mpill">₹6.92 L</span>
-    </div>
-    <div class="mc">
-      <div class="ml">Total</div>
-      <div class="mv">₹15.7 Cr</div>
-      <span class="mpill">₹2.40 Cr</span>
-    </div>
-  </div>
+    <div id="cards-area"></div>`;
+  renderCards();
+}
 
-  <!-- PENDING -->
-  <div class="grp">
-  <div class="gh"><div class="gd gd-p"></div><span class="gl">Pending — Your Approval Needed</span><span class="gc">4</span></div>
+function renderCards(){
+  const area=document.getElementById('cards-area');
+  if(!area)return;
+  const filtered=getFiltered();
+  const pending=filtered.filter(i=>i.status==='pending');
+  const fyi=filtered.filter(i=>i.status==='fyi');
+  const done=filtered.filter(i=>i.status==='done');
+  let html='';
+  if(pending.length)html+=renderGrp('Pending — Your Approval Needed','gd-p',pending);
+  if(fyi.length)html+=renderGrp('Misc','gd-o',fyi);
+  if(done.length)html+=renderGrp('Approved','gd-d',done);
+  if(!html)html=`<div class="empty"><div class="empty-t">All clear</div><div class="empty-s">Nothing here.</div></div>`;
+  area.innerHTML=html;
+}
 
-  <div class="card open" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
+function renderGrp(title,dotCls,list){
+  return`<div class="grp"><div class="gh"><div class="gd ${dotCls}"></div><span class="gl">${title}</span><span class="gc">${list.length}</span></div>${list.map(renderCard).join('')}</div>`;
+}
+
+function renderCard(item){
+  const open=openTid===item.tid;
+  const ast=actionStatus[item.tid]||{};
+  const fromName=(item.from||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];
+  const namePill=fromName?`<span class="mpill2">${fromName}</span>`:'';
+  const riskBadge=item.risk?`<span class="risk-${item.risk.charAt(0).toUpperCase()+item.risk.slice(1).toLowerCase()}">${item.risk.charAt(0).toUpperCase()+item.risk.slice(1)} Risk</span>`:'';
+  const amtApproved=item.rohanApproved?`<span class="mpill-g">Amount Approved</span>`:'';
+  let badge='';
+  if(item.status==='fyi'&&item.approvalPill)badge=`<span class="mpill-g">${item.approvalPill}</span>`;
+  else if(item.status==='done')badge=`<span class="badge-done">Approved</span>`;
+
+  let panelContent='';
+  if(item.fields&&item.fields.length){
+    panelContent+=`<div class="kv">${item.fields.map(f=>`<span class="kvl">${f.label}</span><span class="kvv">${f.value}</span>`).join('')}</div>`;
+  }
+  if(item.fields&&item.fields.length&&item.rows&&item.rows.length)panelContent+=`<div class="sep"></div>`;
+  if(item.rows&&item.rows.length){
+    const catColor={'Payables':'#3C3489','Salary':'#27500A','Expenses':'#0C447C','Finance Cost':'#791F1F'};
+    const catBg={'Payables':'#EEEDFE','Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FCEBEB'};
+    panelContent+=`<table class="tbl">
+      <thead><tr><th>${item.type==='EXP'?'Expense Head':item.type==='VPAY'?'Vendor':'Name'}</th>${item.type==='EXP'?'<th>Purpose</th>':''}<th>Category</th><th>Amount</th></tr></thead>
+      <tbody>${item.rows.map(r=>`<tr><td>${r.name}</td>${item.type==='EXP'?`<td>${r.purpose||'—'}</td>`:''}<td><span style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:${catBg[r.category]||'#F5F4F0'};color:${catColor[r.category]||'#5C5A55'}">${r.category}</span></td><td>${r.amount}</td></tr>`).join('')}
+      ${item.amount?`<tr class="tbl-tot"><td colspan="${item.type==='EXP'?3:2}">Total</td><td>${item.amount}</td></tr>`:''}</tbody></table>`;
+  }
+  if(item.note)panelContent+=`<div class="note">${item.note}</div>`;
+
+  let actions='';
+  if(item.status==='pending'){
+    actions=`<textarea id="cmt-${item.tid}" rows="2" placeholder="Add a comment (optional)…"></textarea>
+    <div class="acts">
+      <button class="ba" onclick="event.stopPropagation();doAction('${item.tid}','approve')">✓ Approve</button>
+      <button class="br" onclick="event.stopPropagation();doAction('${item.tid}','reject')">✕ Reject</button>
+      ${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}
+    </div>`;
+  }else if(item.status==='fyi'){
+    actions=`<div class="acts"><button class="bo" onclick="event.stopPropagation();doAction('${item.tid}','okay')">✓ Mark Done</button>${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}</div>`;
+  }
+
+  return`<div class="card${open?' open':''}" onclick="toggleCard('${item.tid}')">
     <div class="ch">
-      <div class="cicon ic-HR"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5" r="2.5"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg></div>
+      <div class="cicon ic-${item.type}">${ICONS[item.type]||ICONS.GEN}</div>
       <div class="cmain">
-        <div class="ctitle">Intern To FTE — 4 People</div>
-        <div class="cmeta"><span class="mdate">09 Apr</span><span class="mdot">·</span><span class="mpill2">Jiten</span></div>
+        <div class="ctitle">${item.title||item.subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi,'').trim()}</div>
+        <div class="cmeta">
+          <span class="mdate">${item.date}</span><span class="mdot">·</span>
+          ${namePill}
+          ${amtApproved?`<span class="mdot">·</span>${amtApproved}`:''}
+          ${riskBadge?`<span class="mdot">·</span>${riskBadge}`:''}
+          ${badge?`<span class="mdot">·</span>${badge}`:''}
+        </div>
       </div>
-      <span class="camount">~₹27 L</span>
+      <span class="camount">${item.amount||''}</span>
     </div>
-    <div class="panel show">
-      <div class="kv">
-        <span class="kvl">Headcount</span><span class="kvv">4 Interns → FTE</span>
-        <span class="kvl">Teams</span><span class="kvv">3 Engineering · 1 Product</span>
-        <span class="kvl">CTC Per Person</span><span class="kvv">₹45,000 – ₹60,000 / Month</span>
-        <span class="kvl">Annual Cost</span><span class="kvv">₹25 – ₹29 L Total</span>
-        <span class="kvl">Pre-Approved By</span><span class="kvv">Jiten</span>
-        <span class="kvl">Effective</span><span class="kvv">Immediate</span>
-      </div>
-      <div class="note">All 4 assessed as strong performers. Jiten's written approval attached. Conversion to permanent rolls with standard FTE benefits and notice period terms.</div>
-      <textarea rows="2" placeholder="Add a comment (optional)…"></textarea>
-      <div class="acts"><button class="ba">✓ Approve</button><button class="br">✕ Reject</button></div>
+    <div class="panel${open?' show':''}">
+      ${panelContent}
+      ${actions}
     </div>
-  </div>
+  </div>`;
+}
 
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-VPAY"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="8.5" rx="1.5"/><path d="M1.5 7h13M4.5 10.5h2"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">Vendor Payments — ASL OD & CA Batch</div>
-        <div class="cmeta"><span class="mdate">07 Apr</span><span class="mdot">·</span><span class="mpill2">Ajit</span></div>
-      </div>
-      <span class="camount">₹2.06 Cr</span>
-    </div>
-    <div class="panel">
-      <div class="kv">
-        <span class="kvl">Company</span><span class="kvv">Arisinfra Solutions Ltd</span>
-        <span class="kvl">Accounts</span><span class="kvv">OD + CA</span>
-        <span class="kvl">Payment Date</span><span class="kvv">06 Apr 2026</span>
-      </div>
-      <div class="sep"></div>
-      <table class="tbl">
-        <thead><tr><th>Vendor</th><th>Category</th><th>Amount</th></tr></thead>
-        <tbody>
-          <tr><td>Texterity</td><td><span class="cat-fin">Finance Cost</span></td><td>₹62.4 L</td></tr>
-          <tr><td>Sun-X Concrete</td><td><span class="cat-pay">Payables</span></td><td>₹48.2 L</td></tr>
-          <tr><td>RK Infra</td><td><span class="cat-pay">Payables</span></td><td>₹41.7 L</td></tr>
-          <tr><td>Axis Bank</td><td><span class="cat-fin">Finance Cost</span></td><td>₹28.9 L</td></tr>
-          <tr><td>BuildPro</td><td><span class="cat-pay">Payables</span></td><td>₹24.8 L</td></tr>
-          <tr class="tbl-tot"><td colspan="2">Total (Full Batch)</td><td>₹2.06 Cr</td></tr>
-        </tbody>
-      </table>
-      <div class="note">Top 5 Shown · Full List In Attached Excel</div>
-      <textarea rows="2" placeholder="Add a comment (optional)…"></textarea>
-      <div class="acts"><button class="ba">✓ Approve</button><button class="br">✕ Reject</button></div>
-    </div>
-  </div>
+function toggleCard(tid){openTid=openTid===tid?null:tid;renderCards();}
 
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-EXP"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5L14 4.5v7L8 14.5 2 11.5v-7L8 1.5z"/><path d="M8 1.5v13M2 4.5l6 3 6-3"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">Other Expenses — ASL April Batch</div>
-        <div class="cmeta"><span class="mdate">07 Apr</span><span class="mdot">·</span><span class="mpill2">Sandesh</span><span class="mdot">·</span><span class="mpill-g">Amount Approved</span></div>
-      </div>
-      <span class="camount">₹16.65 L</span>
-    </div>
-    <div class="panel">
-      <div class="kv">
-        <span class="kvl">Company</span><span class="kvv">Arisinfra Solutions Ltd</span>
-        <span class="kvl">Pre-Approved By</span><span class="kvv">Rohan</span>
-      </div>
-      <div class="sep"></div>
-      <table class="tbl">
-        <thead><tr><th>Expense Head</th><th>Purpose</th><th>Category</th><th>Amount</th></tr></thead>
-        <tbody>
-          <tr><td>Texterity</td><td>NCD Service Fees</td><td><span class="cat-fin">Finance Cost</span></td><td>₹5.90 L</td></tr>
-          <tr><td>Texterity</td><td>Factoring ASL</td><td><span class="cat-fin">Finance Cost</span></td><td>₹1.02 L</td></tr>
-          <tr><td>DJCO</td><td>Professional Fees</td><td><span class="cat-exp">Expenses</span></td><td>₹2.41 L</td></tr>
-          <tr><td>Valorem</td><td>Advisory Fees</td><td><span class="cat-exp">Expenses</span></td><td>₹1.62 L</td></tr>
-          <tr><td>Payroll</td><td>Salary Top-Up</td><td><span class="cat-sal">Salary</span></td><td>₹5.70 L</td></tr>
-          <tr class="tbl-tot"><td colspan="3">Total</td><td>₹16.65 L</td></tr>
-        </tbody>
-      </table>
-      <textarea rows="2" placeholder="Add a comment (optional)…"></textarea>
-      <div class="acts"><button class="ba">✓ Approve</button><button class="br">✕ Reject</button></div>
-    </div>
-  </div>
+async function doAction(tid,action){
+  const item=items.find(i=>i.tid===tid);
+  const cmtEl=document.getElementById('cmt-'+tid);
+  const comment=cmtEl?cmtEl.value.trim():'';
+  actionStatus[tid]={text:'Sending…',cls:''};
+  renderCards();
+  if(action==='okay'){
+    try{const r=await fetch('/api/gmail?action=mark-read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokens,tid})});const d=await r.json();if(d.refreshedTokens)saveTokens(d.refreshedTokens);}catch(e){}
+    const idx=items.findIndex(i=>i.tid===tid);if(idx>=0)items.splice(idx,1);delete actionStatus[tid];openTid=null;renderAll();return;
+  }
+  const body=action==='approve'?(comment?`Approved.\n\n${comment}`:'Approved.'):(comment?`Rejected.\n\n${comment}`:'Rejected.');
+  try{
+    const r=await fetch('/api/gmail?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokens,tid,to:item.to,cc:item.cc,subject:item.subj,body})});
+    const d=await r.json();
+    if(d.refreshedTokens)saveTokens(d.refreshedTokens);
+    if(!d.ok)throw new Error(d.error||'Send failed');
+    actionStatus[tid]={text:action==='approve'?'Sent — Approved ✓':'Sent — Rejected ✓',cls:'ok'};
+    const idx=items.findIndex(i=>i.tid===tid);if(idx>=0)items[idx].status='done';
+    setTimeout(()=>{openTid=null;delete actionStatus[tid];renderAll();},1500);
+  }catch(e){actionStatus[tid]={text:'Error: '+e.message,cls:'er'};renderCards();}
+}
 
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-CRM"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 10c0 2-2.5 3.5-5.5 3.5S2.5 12 2.5 10s2.5-3.5 5.5-3.5 5.5 1.5 5.5 3.5z"/><path d="M13.5 10V6c0-2-2.5-3.5-5.5-3.5S2.5 4 2.5 6v4"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">Customer Creation — Casa Grande Axiom</div>
-        <div class="cmeta"><span class="mdate">08 Apr</span><span class="mdot">·</span><span class="mpill2">Divya</span><span class="mdot">·</span><span class="risk-H">High Risk</span></div>
-      </div>
-      <span class="camount">₹30 L</span>
-    </div>
-    <div class="panel">
-      <div class="kv">
-        <span class="kvl">Customer</span><span class="kvv">Casa Grande Axiom Pvt Ltd</span>
-        <span class="kvl">Entity</span><span class="kvv">Arisinfra · Sun-X RMC</span>
-        <span class="kvl">Credit Limit</span><span class="kvv">₹30 L · 60 Days</span>
-        <span class="kvl">Insurance</span><span class="kvv">DCL · No Security</span>
-        <span class="kvl">Location</span><span class="kvv">Chennai, Tamil Nadu</span>
-        <span class="kvl">Manager</span><span class="kvv">Rishit</span>
-      </div>
-      <div class="sep"></div>
-      <div class="kv">
-        <span class="kvl">Revenue FY25</span><span class="kvv">₹4 Cr (↓ From ₹247 Cr FY23)</span>
-        <span class="kvl">Probe Score</span><span class="kvv">03 · Good</span>
-        <span class="kvl">Legal Cases</span><span class="kvv">None</span>
-        <span class="kvl">DPO</span><span class="kvv">165 Days (High)</span>
-        <span class="kvl">Group</span><span class="kvv">Casagrand</span>
-      </div>
-      <div class="note">Credit team recommends High Risk. Net eligible limit per probe: ₹0.07 Cr. Suvesh has given verbal go-ahead.</div>
-      <textarea rows="2" placeholder="Add a comment (optional)…"></textarea>
-      <div class="acts"><button class="ba">✓ Approve</button><button class="br">✕ Reject</button></div>
-    </div>
-  </div>
-  </div>
+boot();
 
-  <!-- MISC -->
-  <div class="grp">
-  <div class="gh"><div class="gd gd-o"></div><span class="gl">Misc</span><span class="gc">3</span></div>
-
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-TRF"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h10"/><path d="M10 2.5l3 2.5-3 2.5"/><path d="M13 11H3"/><path d="M6 8.5L3 11l3 2.5"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">Internal Transfers — Group Companies</div>
-        <div class="cmeta"><span class="mdate">08 Apr</span><span class="mdot">·</span><span class="mpill2">Ajit</span><span class="mdot">·</span><span class="mpill-g">Transfer Approved</span></div>
-      </div>
-      <span class="camount">₹60 L</span>
-    </div>
-    <div class="panel">
-      <div class="kv"><span class="kvl">Approved By</span><span class="kvv">Nishita</span><span class="kvl">Date</span><span class="kvv">07 Apr 2026</span></div>
-      <div class="sep"></div>
-      <table class="tbl">
-        <thead><tr><th>From</th><th>To</th><th>Amount</th></tr></thead>
-        <tbody>
-          <tr><td>ASL</td><td>JS Infra Core Pvt Ltd</td><td>₹60 L</td></tr>
-          <tr><td>ASL</td><td>Arisinfra Trading Pvt Ltd</td><td>—</td></tr>
-        </tbody>
-      </table>
-      <div class="acts"><button class="bo">✓ Mark Done</button></div>
-    </div>
-  </div>
-
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-CRM"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 10c0 2-2.5 3.5-5.5 3.5S2.5 12 2.5 10s2.5-3.5 5.5-3.5 5.5 1.5 5.5 3.5z"/><path d="M13.5 10V6c0-2-2.5-3.5-5.5-3.5S2.5 4 2.5 6v4"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">Credit Approval — Rameehans Dwellers LLP</div>
-        <div class="cmeta"><span class="mdate">06 Apr</span><span class="mdot">·</span><span class="mpill2">Divya</span><span class="mdot">·</span><span class="mpill-g">Limit Approved</span></div>
-      </div>
-      <span class="camount">₹25 L</span>
-    </div>
-    <div class="panel">
-      <div class="kv"><span class="kvl">Customer</span><span class="kvv">Rameehans Dwellers LLP</span><span class="kvl">Approved By</span><span class="kvv">Divya</span><span class="kvl">Credit Limit</span><span class="kvv">₹25 L · 45 Days</span></div>
-      <div class="acts"><button class="bo">✓ Mark Done</button></div>
-    </div>
-  </div>
-
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-TD"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7.5h6M5 10h4"/><path d="M5.5 3V1.5M10.5 3V1.5"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">Trade Deposit Update — Chennai Mines BIPL</div>
-        <div class="cmeta"><span class="mdate">04 Apr</span><span class="mdot">·</span><span class="mpill2">Trupti</span></div>
-      </div>
-      <span class="camount">₹10.25 Cr</span>
-    </div>
-    <div class="panel">
-      <div class="kv"><span class="kvl">Party</span><span class="kvv">Chennai Mines Pvt Ltd</span><span class="kvl">Paying Company</span><span class="kvv">Buildmex Infra Pvt Ltd</span><span class="kvl">Amount</span><span class="kvv">₹10,25,00,000</span><span class="kvl">Purpose</span><span class="kvv">Trade Deposit</span></div>
-      <div class="acts"><button class="bo">✓ Mark Done</button></div>
-    </div>
-  </div>
-  </div>
-
-  <!-- APPROVED -->
-  <div class="grp">
-  <div class="gh"><div class="gd gd-d"></div><span class="gl">Approved</span><span class="gc">2</span></div>
-
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-EXP"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5L14 4.5v7L8 14.5 2 11.5v-7L8 1.5z"/><path d="M8 1.5v13M2 4.5l6 3 6-3"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">Other Expenses — ASL March Batch</div>
-        <div class="cmeta"><span class="mdate">31 Mar</span><span class="mdot">·</span><span class="mpill2">Sandesh</span><span class="mdot">·</span><span class="mpill-g">Amount Approved</span><span class="mdot">·</span><span class="mpill-g">Approved</span></div>
-      </div>
-      <span class="camount">₹10.32 L</span>
-    </div>
-    <div class="panel">
-      <div class="kv"><span class="kvl">Pre-Approved By</span><span class="kvv">Rohan</span><span class="kvl">Your Action</span><span class="kvv">Approved · 01 Apr</span></div>
-      <div class="sep"></div>
-      <table class="tbl">
-        <thead><tr><th>Expense Head</th><th>Purpose</th><th>Category</th><th>Amount</th></tr></thead>
-        <tbody>
-          <tr><td>Texterity</td><td>NCD Service Fees</td><td><span class="cat-fin">Finance Cost</span></td><td>₹5.90 L</td></tr>
-          <tr><td>DJCO</td><td>Professional Fees</td><td><span class="cat-exp">Expenses</span></td><td>₹2.41 L</td></tr>
-          <tr><td>Valorem</td><td>Advisory</td><td><span class="cat-exp">Expenses</span></td><td>₹1.62 L</td></tr>
-          <tr><td>Sunx</td><td>Service Fees</td><td><span class="cat-fin">Finance Cost</span></td><td>₹0.39 L</td></tr>
-          <tr class="tbl-tot"><td colspan="3">Total</td><td>₹10.32 L</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card" onclick="this.classList.toggle('open');this.querySelector('.panel').classList.toggle('show')">
-    <div class="ch">
-      <div class="cicon ic-FD"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6h12M5.5 9.5h5M5.5 12h3"/></svg></div>
-      <div class="cmain">
-        <div class="ctitle">FD Break — IDBI Bank</div>
-        <div class="cmeta"><span class="mdate">02 Apr</span><span class="mdot">·</span><span class="mpill2">Roma</span><span class="mdot">·</span><span class="mpill-g">Approved</span></div>
-      </div>
-      <span class="camount">₹85 L</span>
-    </div>
-    <div class="panel">
-      <div class="kv">
-        <span class="kvl">Bank</span><span class="kvv">IDBI Bank Limited</span>
-        <span class="kvl">Company</span><span class="kvv">Arisinfra Solutions Ltd</span>
-        <span class="kvl">Action</span><span class="kvv">FD Break · Pre-IPO Account</span>
-        <span class="kvl">FDs Broken</span><span class="kvv">₹50 L + ₹35 L</span>
-        <span class="kvl">Your Action</span><span class="kvv">Approved · 03 Apr</span>
-      </div>
-    </div>
-  </div>
-  </div>
-
-</div>
-</div>
-</div>
-
+// Auto-poll every 90 seconds
+const POLL_INTERVAL=90*1000;let pollTimer=null,isPolling=false;
+async function silentRefresh(){
+  if(!tokens||isPolling)return;isPolling=true;
+  const ts=document.getElementById('ts');if(ts)ts.style.opacity='0.4';
+  try{
+    const r=await fetch('/api/gmail?action=inbox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokens})});
+    const d=await r.json();if(d.error)throw new Error(d.error);if(d.refreshedTokens)saveTokens(d.refreshedTokens);
+    const newItems=d.items.map(item=>({...item,type:detectType(item.subj),amt:extractAmt(item.subj),from:cleanFrom(item.from),date:formatDate(item.date),snip:decodeHtml(item.snippet)}));
+    const sig=newItems.map(i=>i.tid+i.read).join('|'),oldSig=items.map(i=>i.tid+i.read).join('|');
+    if(sig!==oldSig){items=newItems;renderAll();}
+    if(ts){ts.textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});ts.style.opacity='1';}
+  }catch(e){
+    if(ts)ts.style.opacity='1';
+    if(e.message&&(e.message.includes('invalid_grant')||e.message.includes('401'))){saveTokens(null);localStorage.removeItem('aris_tokens');stopPolling();showAuth();}
+  }finally{isPolling=false;}
+}
+function startPolling(){stopPolling();pollTimer=setInterval(silentRefresh,POLL_INTERVAL);}
+function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null;}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPolling();}else if(tokens){silentRefresh();startPolling();}});
+</script>
+</body>
 </html>
