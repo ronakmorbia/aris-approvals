@@ -74,19 +74,19 @@ export default async function handler(req, res) {
         }
       }
 
-      const items = [];
-      for (const msg of threadMap.values()) {
+      // Cap at 25 most recent messages to stay within Vercel timeout
+      const msgList = [...threadMap.values()].slice(0, 25);
+
+      const processMsg = async (msg) => {
         try {
-          // Fetch full message to get body text
           const detail = await gmail.users.messages.get({
             userId: 'me',
             id: msg.id,
-            format: 'full',
-            metadataHeaders: ['From', 'To', 'Cc', 'Subject', 'Date']
+            format: 'full'
           });
 
           const headers = {};
-          for (const h of detail.data.payload.headers) {
+          for (const h of (detail.data.payload?.headers || [])) {
             headers[h.name.toLowerCase()] = h.value;
           }
 
@@ -117,13 +117,16 @@ export default async function handler(req, res) {
               return '';
             };
             const extracted = extractBody(detail.data.payload);
-            if (extracted) bodyText = extracted.slice(0, 2000);
+            if (extracted) bodyText = extracted.slice(0, 4000);
           } catch(e) {}
 
           // Generate smart card content via Anthropic API
           let title = headers.subject || '';
           let amount = '';
-          let summary = '';
+          let risk = '';
+          let fields = [];
+          let rows = [];
+          let note = '';
 
           try {
             const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -135,17 +138,58 @@ export default async function handler(req, res) {
               },
               body: JSON.stringify({
                 model: 'claude-haiku-4-5-20251001',
-                max_tokens: 300,
-                system: `You are an assistant that processes approval request emails for ARIS, a construction materials company. 
-Extract key information and return ONLY valid JSON with no other text:
+                max_tokens: 600,
+                system: `You process internal approval emails for ARIS, a construction materials company. Extract structured data for the CMD's approval dashboard.
+
+NAMES: Always use first name only for all people. "Sandesh Haravade" → "Sandesh", "Divya Iyer" → "Divya", "Rohan Morbia" → "Rohan".
+
+TITLE (max 8 words, plain English, no APP- prefix):
+- HR: "Intern to FTE — 4 people" / "New hire — Backend Engineer"
+- Expenses: "Other expenses — ASL April batch"
+- Vendor payment: "Vendor payments — ASL OD & CA"
+- Trade deposit: "Trade deposit — Netwin Roadways"
+- Transfer: "Internal transfer — JS Infra Core"
+- FD: "FD break — IDBI ₹85 L"
+- CRM: "Customer creation — Casa Grande Axiom"
+
+AMOUNT: Sum all line items. Format ₹X Cr / ₹X L. Empty string if no monetary amount.
+
+RISK (CRM emails only): "High" / "Medium" / "Low" / "" based on credit team recommendation or category rating.
+
+FIELDS: Key-value pairs shown as a mini info table. Keep labels short (max 3 words). Use first names. Examples:
+- HR: Headcount, Teams, CTC/Salary (ALWAYS include if mentioned — monthly, annual, or per person), Pre-approved by, Effective date
+- CRM: Customer, Entity, Credit limit, Credit period, Insurance, Location, Manager
+- Transfer: From, To, Amount, Purpose, Bank
+- FD: Bank, Company, Amount, Action (break/placement)
+- Trade deposit: Party, Paying company, Amount, Purpose
+
+ROWS (for expenses, vendor payments — top 5 by amount descending):
+Each row must have: name (first name or short vendor name), category (ONLY one of: "Salary" / "Expenses" / "Finance Cost"), amount.
+Categorisation rules:
+- "Salary" → payroll, salary, wages, HR payments
+- "Finance Cost" → interest, NCD fees, bank charges, factoring, OD interest, loan repayment
+- "Expenses" → everything else (vendor payments, service fees, professional fees, material costs, operational)
+
+NOTE: 1-2 sentence context. For done/FYI: who requested, who approved, outcome.
+
+Return ONLY valid JSON:
 {
-  "title": "Short action-oriented title (max 8 words, no APP- prefix, e.g. 'Vendor payment — Arisinfra' or 'Customer creation — Casa Grande Axiom')",
-  "amount": "Amount if mentioned (e.g. '₹2.06 Cr' or '₹30 L') or empty string",
-  "summary": "2-3 sentence summary. For pending: what is being requested, by whom, key details. For FYI/done: what happened, who requested it, who approved it."
-}`,
+  "title": "...",
+  "amount": "...",
+  "risk": "",
+  "fields": [{"label": "...", "value": "..."}],
+  "rows": [{"name": "...", "category": "Salary|Expenses|Finance Cost", "amount": "..."}],
+  "note": "..."
+}
+Fields and rows can be empty arrays if not applicable.`,
                 messages: [{
                   role: 'user',
-                  content: `Category: ${msg.cat}\nStatus: ${status}\nSubject: ${headers.subject}\nFrom: ${headers.from}\nBody:\n${bodyText}`
+                  content: `Label: ${msg.cat}
+Status: ${status}
+From: ${headers.from}
+Subject: ${headers.subject}
+Body:
+${bodyText}`
                 }]
               })
             });
@@ -156,31 +200,54 @@ Extract key information and return ONLY valid JSON with no other text:
               const parsed = JSON.parse(aiText.slice(s, e + 1));
               title = parsed.title || title;
               amount = parsed.amount || '';
-              summary = parsed.summary || '';
+              risk = parsed.risk || '';
+              fields = parsed.fields || [];
+              rows = parsed.rows || [];
+              note = parsed.note || '';
             }
           } catch(e) {
-            // Fall back to subject and snippet
-            summary = detail.data.snippet || '';
+            // AI failed — show snippet so card is never blank
+            const snip = (detail.data.snippet || '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+            note = snip || 'Could not parse email content.';
+            fields = [{ label: 'From', value: (headers.from||'').replace(/<[^>]+>/g,'').trim() }, { label: 'Subject', value: headers.subject || '' }];
           }
 
-          items.push({
+          return {
             tid: msg.threadId,
             mid: msg.id,
             cat: msg.cat,
             subj: headers.subject || '',
             title,
             amount,
-            summary,
+            risk,
+            fields,
+            rows,
+            note,
             from: headers.from || '',
             date: headers.date || '',
             to: headers.to || '',
             cc: headers.cc || '',
             isUnread,
             isCc,
-            status
+            status,
+            rohanApproved: bodyText.toLowerCase().includes('rohan') && (bodyText.toLowerCase().includes('approved') || bodyText.toLowerCase().includes('approve')),
+            approvalPill: (() => {
+              const b = bodyText.toLowerCase();
+              if (b.includes('transfer') && (b.includes('approved') || b.includes('approve'))) return 'Transfer Approved';
+              if ((b.includes('limit') || b.includes('credit')) && (b.includes('approved') || b.includes('approve'))) return 'Limit Approved';
+              if (b.includes('amount') && (b.includes('approved') || b.includes('approve'))) return 'Amount Approved';
+              if (b.includes('nishita') || b.includes('divya')) {
+                if (b.includes('approved') || b.includes('approve')) return 'Approved';
+              }
+              return '';
+            })()
           });
-        } catch (e) { /* skip */ }
-      }
+        } catch (e) { return null; }
+      };
+
+      // Process all messages in parallel
+      const results = await Promise.all(msgList.map(processMsg));
+      const items = results.filter(Boolean);
 
       return res.json({ items, refreshedTokens: oauth2Client.credentials });
     } catch (e) {
