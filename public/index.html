@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#FFFFFF;color:#18171A;min-height:100vh;font-size:14px}
+html,body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#F6F6F6;color:#18171A;min-height:100vh;font-size:14px}
 
 /* Header */
 header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;height:56px;position:sticky;top:0;z-index:100}.hinner{max-width:1200px;margin:0 auto;padding:0 2.5rem;height:56px;display:flex;align-items:center;justify-content:space-between}
@@ -23,7 +23,7 @@ header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;height:56px;position
 main{max-width:1200px;margin:0 auto;padding:1.75rem 2.5rem}
 
 /* Metrics */
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
 .mc{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:10px;padding:1rem 1.1rem}
 .ml{font-size:11px;font-weight:500;color:#9E9B94;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
 .mv{font-size:26px;font-weight:300;letter-spacing:-1px;color:#18171A;margin-bottom:6px}
@@ -242,18 +242,81 @@ function setFilter(f){
   renderCards();
 }
 
+
+function parseAmt(s) {
+  if (!s) return 0;
+  const cr = s.match(/₹\s*([\d.]+)\s*Cr/i);
+  if (cr) return parseFloat(cr[1]) * 10000000;
+  const l = s.match(/₹\s*([\d.]+)\s*L/i);
+  if (l) return parseFloat(l[1]) * 100000;
+  return 0;
+}
+
+function fmtAmt(n) {
+  if (!n) return '—';
+  if (n >= 10000000) return '₹' + (n/10000000).toFixed(2) + ' Cr';
+  if (n >= 100000) return '₹' + (n/100000).toFixed(2) + ' L';
+  return '₹' + Math.round(n).toLocaleString('en-IN');
+}
+
 function updateMetrics() {
-  const pending = items.filter(i=>i.status==='pending');
-  const done = items.filter(i=>i.status==='done');
-  const fyi = items.filter(i=>i.status==='fyi');
-  document.getElementById('m-pending').textContent = pending.length;
-  document.getElementById('m-pending-count').textContent = pending.length + ' item' + (pending.length===1?'':'s');
-  document.getElementById('m-approved').textContent = done.length;
-  document.getElementById('m-approved-count').textContent = done.length + ' item' + (done.length===1?'':'s');
-  document.getElementById('m-misc').textContent = fyi.length;
-  document.getElementById('m-misc-count').textContent = fyi.length + ' item' + (fyi.length===1?'':'s');
-  document.getElementById('m-total').textContent = items.length;
-  document.getElementById('m-total-count').textContent = items.length + ' emails';
+  // Approved = done status only (main number)
+  // Pending = pending status (pill below)
+  let payDone=0, expDone=0, finDone=0, techDone=0;
+  let payPend=0, expPend=0, finPend=0, techPend=0;
+
+  for (const item of items) {
+    const amt = parseAmt(item.amount);
+    const isDone = item.status === 'done';
+    const isPend = item.status === 'pending';
+    if (!isDone && !isPend) continue; // skip fyi/misc
+
+    if (item.type === 'VPAY') {
+      if (isDone) payDone += amt;
+      if (isPend) payPend += amt;
+
+    } else if (item.type === 'EXP') {
+      const rows = item.rows || [];
+      if (rows.length) {
+        for (const r of rows) {
+          const ra = parseAmt(r.amount);
+          if (r.category === 'Finance Cost') {
+            if (isDone) finDone += ra; if (isPend) finPend += ra;
+          } else if (r.category === 'Technology') {
+            if (isDone) techDone += ra; if (isPend) techPend += ra;
+          } else {
+            // Salary + Expenses both go to Expenses bucket
+            if (isDone) expDone += ra; if (isPend) expPend += ra;
+          }
+        }
+      } else {
+        // No row breakdown — put full amount in Expenses
+        if (isDone) expDone += amt; if (isPend) expPend += amt;
+      }
+    }
+  }
+
+  const totalDone = payDone + expDone + finDone + techDone;
+  const totalPend = payPend + expPend + finPend + techPend;
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+  const setPill = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (val) { el.textContent = val; el.style.display = 'inline-flex'; }
+    else { el.style.display = 'none'; }
+  };
+
+  set('m-payables', payDone ? fmtAmt(payDone) : '₹0');
+  set('m-expenses', expDone ? fmtAmt(expDone) : '₹0');
+  set('m-finance',  finDone ? fmtAmt(finDone)  : '₹0');
+  set('m-tech',     techDone ? fmtAmt(techDone) : '₹0');
+  set('m-total',    totalDone ? fmtAmt(totalDone) : '₹0');
+  setPill('m-payables-p', payPend  ? fmtAmt(payPend)  : '');
+  setPill('m-expenses-p', expPend  ? fmtAmt(expPend)  : '');
+  setPill('m-finance-p',  finPend  ? fmtAmt(finPend)  : '');
+  setPill('m-tech-p',     techPend ? fmtAmt(techPend) : '');
+  setPill('m-total-p',    totalPend ? fmtAmt(totalPend) : '');
 }
 
 function renderAll(){
@@ -267,10 +330,11 @@ function renderAll(){
 
   document.getElementById('main').innerHTML=`
     <div class="metrics">
-      <div class="mc"><div class="ml">Pending</div><div class="mv" id="m-pending">—</div><span class="mpill" id="m-pending-count">0 items</span></div>
-      <div class="mc"><div class="ml">Approved</div><div class="mv" id="m-approved">—</div><span class="mpill" id="m-approved-count" style="background:#EAF3DE;color:#27500A;border-color:#97C459">0 items</span></div>
-      <div class="mc"><div class="ml">Misc</div><div class="mv" id="m-misc">—</div><span class="mpill" id="m-misc-count" style="background:#F5F4F0;color:#5C5A55;border-color:#C8C5BC">0 items</span></div>
-      <div class="mc"><div class="ml">Total Inbox</div><div class="mv" id="m-total">—</div><span class="mpill" id="m-total-count">0 emails</span></div>
+      <div class="mc"><div class="ml">Payables</div><div class="mv" id="m-payables">—</div><span class="mpill" id="m-payables-p" style="display:none"></span></div>
+      <div class="mc"><div class="ml">Expenses</div><div class="mv" id="m-expenses">—</div><span class="mpill" id="m-expenses-p" style="display:none"></span></div>
+      <div class="mc"><div class="ml">Finance Cost</div><div class="mv" id="m-finance">—</div><span class="mpill" id="m-finance-p" style="display:none"></span></div>
+      <div class="mc"><div class="ml">Technology</div><div class="mv" id="m-tech">—</div><span class="mpill" id="m-tech-p" style="display:none"></span></div>
+      <div class="mc"><div class="ml">Total</div><div class="mv" id="m-total">—</div><span class="mpill" id="m-total-p" style="display:none"></span></div>
     </div>
     <div class="filters">
       <div class="chip on" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>

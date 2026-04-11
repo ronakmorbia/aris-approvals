@@ -83,6 +83,7 @@ function categorise(name, purpose, emailType) {
   const s = (name + ' ' + purpose).toLowerCase();
   if (/salary|payroll|wages|stipend|staff/i.test(s)) return 'Salary';
   if (/interest|ncd|bank charge|factoring|od |loan repay|finance|processing fee/i.test(s)) return 'Finance Cost';
+  if (/software|saas|tech|crm|erp|app|platform|subscription|aws|azure|google cloud|techmagify|sazs|weightment|automation|digital|it |web |api/i.test(s)) return 'Technology';
   if (emailType === 'VPAY') return 'Payables';
   if (/vendor|supplier|material|cement|steel|rmc|concrete|aggregate|sand|supply/i.test(s)) return 'Payables';
   return 'Expenses';
@@ -212,6 +213,51 @@ function parseTDAmounts(body) {
   return { rows, total };
 }
 
+
+// Generate smart human-readable title from email data
+function smartTitle(type, subj, from, body, rows) {
+  const d = subj.match(/(\d{2}-\d{2}-\d{4})/);
+  const dateStr = d ? (() => {
+    const [dd, mm, yyyy] = d[1].split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return dd + ' ' + months[parseInt(mm)-1];
+  })() : '';
+
+  if (type === 'VPAY') {
+    const acct = subj.includes('OD & CA') ? 'OD & CA' : subj.includes('OD') ? 'OD' : 'CA';
+    return `Vendor Payments — ${acct}${dateStr ? ' · ' + dateStr : ''}`;
+  }
+  if (type === 'EXP') {
+    return `Other Expenses — ASL${dateStr ? ' · ' + dateStr : ''}`;
+  }
+  if (type === 'TD') {
+    const party = subj
+      .replace(/^APP-TD[-–\s:]*/i, '')
+      .replace(/^\d+\.?\d*\s*Cr?\s*[-–]?\s*Deposit[-–\s]*/i, '')
+      .replace(/[-–]?\s*(ASL|BIPL)\s*$/i, '')
+      .replace(/Deposit[-–\s]*/i, '')
+      .trim().split(' ').slice(0,4).join(' ');
+    return `Trade Deposit — ${party || 'See email'}`;
+  }
+  if (type === 'TRF') {
+    const fromMatch = (body||'').match(/From:\s*(.+?)(?:\r?\n|To:)/i);
+    const toMatch = (body||'').match(/To:\s*(.+?)(?:\r?\n|Amount:)/i);
+    if (fromMatch && toMatch) return `Transfer — ${fromMatch[1].trim().split(' ').slice(0,2).join(' ')} → ${toMatch[1].trim().split(' ').slice(0,2).join(' ')}`;
+    return `Internal Transfer${dateStr ? ' · ' + dateStr : ''}`;
+  }
+  if (type === 'CRM') {
+    const party = subj.replace(/^.*Credit Approval[-–\s]*/i,'').replace(/[-–]\s*\(.*\)$/,'').trim();
+    return `Credit Approval — ${party || 'Customer'}`;
+  }
+  if (type === 'HR') {
+    return subj.replace(/^(Re:|RE:|APP-HR[-–]?|HR-APP:)\s*/gi,'').trim().slice(0, 50);
+  }
+  if (type === 'FD') {
+    return subj.replace(/^APP-FD:?\s*/i,'').replace(/Rs\s+/i,'').trim().slice(0, 50);
+  }
+  return subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*[-:]?\s*)/gi,'').trim().slice(0, 60);
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -285,6 +331,7 @@ export default async function handler(req, res) {
         const { msg, h, status, isUnread, isCc, type, snippet } = meta;
         const subj = h.subject || '';
         let amount = extractAmtFromSubject(subj);
+        let smartTitleStr = '';
         let fields = [];
         let rows = [];
         let note = '';
@@ -305,7 +352,7 @@ export default async function handler(req, res) {
             if (isCancelled) {
               return {
                 tid: msg.threadId, mid: msg.id, cat: msg.cat, subj, type,
-                title: cleanTitle(subj),
+                title: smartTitle(type, subj, h.from, '', []),
                 amount: extractAmtFromSubject(subj),
                 risk: '', rows: [],
                 note: 'Sandesh has asked to ignore this request. Please disregard.',
@@ -455,9 +502,10 @@ export default async function handler(req, res) {
           if (!fields.length) fields = [{ label: 'From', value: firstName(h.from) }];
         }
 
+        smartTitleStr = smartTitle(type, subj, h.from, '', rows);
         return {
           tid: msg.threadId, mid: msg.id, cat: msg.cat, subj, type,
-          title: cleanTitle(subj), amount, risk, fields, rows, note,
+          title: smartTitleStr, amount, risk, fields, rows, note,
           from: h.from || '', date: h.date || '', to: h.to || '', cc: h.cc || '',
           isUnread, isCc, status, rohanApproved, approvalPill
         };
@@ -468,7 +516,7 @@ export default async function handler(req, res) {
       const doneItems = done.map(({ msg, h, status, isUnread, isCc }) => ({
         tid: msg.threadId, mid: msg.id, cat: msg.cat,
         subj: h.subject || '', type: detectType(h.subject || ''),
-        title: cleanTitle(h.subject || ''),
+        title: smartTitle(detectType(h.subject||''), h.subject||'', h.from||'', '', []),
         amount: extractAmtFromSubject(h.subject || ''),
         risk: '', fields: [], rows: [], note: '',
         from: h.from || '', date: h.date || '', to: h.to || '', cc: h.cc || '',
