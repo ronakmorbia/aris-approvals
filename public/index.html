@@ -257,7 +257,6 @@ function updateMetrics() {
 }
 
 function renderAll(){
-  updateMetrics();
   const pending=items.filter(i=>i.status==='pending').length;
   const misc=items.filter(i=>i.status==='fyi').length;
   const approved=items.filter(i=>i.status==='done').length;
@@ -284,6 +283,7 @@ function renderAll(){
       <div class="chip" data-f="Tax" onclick="setFilter('Tax')">Tax <span style="font-size:10px;opacity:.6">${tax}</span></div>
     </div>
     <div id="cards-area"></div>`;
+  updateMetrics();
   renderCards();
 }
 
