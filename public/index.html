@@ -563,6 +563,64 @@ function renderReportPanel() {
     main.insertBefore(panel, main.firstChild);
   }
 
+  const toTitleCase = s => (s||'').replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+
+  const refineName = (s) => {
+    if (!s) return s;
+    const t = s.trim();
+
+    // Specific known fixes — checked against real email data
+    const exact = {
+      'google clouds': 'Google Cloud',
+      'google cloud': 'Google Cloud',
+      'atlasian': 'Atlassian',
+      'atlassian': 'Atlassian',
+      'slack': 'Slack',
+      'sazs apps': 'Sazs Apps',
+      'aws': 'AWS',
+      'openai': 'OpenAI',
+      'mufg': 'MUFG Bank',
+      'rbsa advisors': 'RBSA Advisors',
+      'thanawala consultancy': 'Thanawala Consultancy',
+      'vesta legal': 'Vesta Legal',
+      'creativeit': 'Creative IT',
+      'creative it': 'Creative IT',
+      'techmagify': 'TechMagify',
+      'tata aig': 'Tata AIG',
+      'rebrandly': 'Rebrandly',
+      'gupshup': 'Gupshup',
+      'cursor': 'Cursor',
+      'anthropic': 'Anthropic',
+      'figma': 'Figma',
+      'dropbox': 'Dropbox',
+      'airtel': 'Airtel',
+      'relic': 'Relic',
+      'texterity': 'Texterity',
+      'sunx': 'Sun-X',
+      'manish bohra': 'Manish Bohra',
+      'corpcomm studio - annual report design': 'Corpcomm Studio',
+      'corpcomm studio': 'Corpcomm Studio',
+      'admin - rent, utility & vendor payments': 'Admin, Rent & Vendor Payments',
+      'rubix (tata insurance) -': 'Rubix (Tata Insurance)',
+      'rubix (tata insurance)': 'Rubix (Tata Insurance)',
+      's&t legal -': 'S&T Legal',
+      's&t legal': 'S&T Legal',
+      'arbitration': 'Arbitration Fees',
+    };
+
+    const key = t.toLowerCase().replace(/\s*-\s*$/, '').trim();
+    if (exact[key]) return exact[key];
+
+    // Corp CC - BANK → Bank Corporate Card
+    const corpCC = key.match(/^corp cc\s*-\s*(.+)$/i);
+    if (corpCC) return toTitleCase(corpCC[1].trim()) + ' Corporate Card';
+
+    // Remove trailing dash
+    const cleaned = t.replace(/\s*[-–]+\s*$/, '').trim();
+
+    // Title case as fallback
+    return toTitleCase(cleaned);
+  };
   const titles = { payables:'Payables Report', expenses:'Expenses Report', finance:'Finance Cost Report' };
   const data = reportCache[activeReport];
 
@@ -584,7 +642,7 @@ function renderReportPanel() {
       const catTotal = catRows.reduce((s,r) => s+r.total, 0);
       tableBody += `<tr style="background:#F5F4F0"><td colspan="2" style="font-size:11px;font-weight:600;color:#5C5A55;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px">${cat}</td><td colspan="2" style="text-align:right;font-size:12px;font-weight:600;color:#5C5A55;padding:8px 10px">${fmtAmt(catTotal)}</td></tr>`;
       for (const r of catRows) {
-        tableBody += `<tr><td style="color:#9E9B94;font-size:12px">${rank++}</td><td>${r.vendor}</td><td style="color:#9E9B94;font-size:12px">${r.count}×</td><td>${fmtAmt(r.total)}</td></tr>`;
+        tableBody += `<tr><td style="color:#9E9B94;font-size:12px">${rank++}</td><td>${refineName(r.vendor)}</td><td style="color:#9E9B94;font-size:12px">${r.count}×</td><td>${fmtAmt(r.total)}</td></tr>`;
       }
     }
   } else {
