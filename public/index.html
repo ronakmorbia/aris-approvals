@@ -23,7 +23,7 @@ header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;height:56px;position
 main{max-width:1200px;margin:0 auto;padding:1.75rem 2.5rem}
 
 /* Metrics */
-.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
+.metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
 .mc{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:10px;padding:1rem 1.1rem}
 .ml{font-size:11px;font-weight:500;color:#9E9B94;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
 .mv{font-size:26px;font-weight:300;letter-spacing:-1px;color:#18171A;margin-bottom:6px}
@@ -224,7 +224,19 @@ function extractAmtFromSubject(s) {
   return '';
 }
 function extractAmt(s){const cr=(s||'').match(/(\d+\.?\d*)\s*Cr/i);if(cr)return'₹'+cr[1]+' Cr';const rs=(s||'').match(/Rs\.?\s*([\d,]+)/i);if(rs)return'₹'+rs[1];const l=(s||'').match(/(\d+\.?\d*)\s*Lacs?/i);if(l)return'₹'+l[1]+' L';return'';}
-function cleanFrom(f){return(f||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];}
+function smartName(from) {
+  const s = (from || '').replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
+  if (!s) return '';
+  // Bare email like trupti.gupta@aris.in
+  if (s.includes('@') && !s.includes(' ')) {
+    const local = s.split('@')[0];
+    const part = local.split('.')[0];
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  }
+  // Display name like "Ajit Gawade <ajit@aris.in>"
+  return s.split(/\s+/)[0];
+}
+function cleanFrom(f){return smartName(f);}
 function formatDate(d){if(!d)return'';try{return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});}catch(e){return d;}}
 function decodeHtml(s){return(s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');}
 
@@ -260,18 +272,25 @@ function fmtAmt(n) {
 }
 
 function updateMetrics() {
-  // Approved = done status only (main number)
-  // Pending = pending status (pill below)
-  let payDone=0, expDone=0, finDone=0, techDone=0;
-  let payPend=0, expPend=0, finPend=0, techPend=0;
+  // Main number = approved (done) this month
+  // Pill = pending (awaiting your approval)
+  let tdDone=0, payDone=0, expDone=0, finDone=0, techDone=0;
+  let tdPend=0, payPend=0, expPend=0, finPend=0, techPend=0;
 
   for (const item of items) {
     const amt = parseAmt(item.amount);
     const isDone = item.status === 'done';
     const isPend = item.status === 'pending';
-    if (!isDone && !isPend) continue; // skip fyi/misc
+    if (!isDone && !isPend) continue;
 
-    if (item.type === 'VPAY') {
+    if (item.type === 'TD') {
+      // Sum all amounts from rows (each tranche), or fall back to item.amount
+      const rows = item.rows || [];
+      const total = rows.length ? rows.reduce((s,r) => s + parseAmt(r.amount), 0) : amt;
+      if (isDone) tdDone += total;
+      if (isPend) tdPend += total;
+
+    } else if (item.type === 'VPAY') {
       if (isDone) payDone += amt;
       if (isPend) payPend += amt;
 
@@ -285,21 +304,19 @@ function updateMetrics() {
           } else if (r.category === 'Technology') {
             if (isDone) techDone += ra; if (isPend) techPend += ra;
           } else {
-            // Salary + Expenses both go to Expenses bucket
             if (isDone) expDone += ra; if (isPend) expPend += ra;
           }
         }
       } else {
-        // No row breakdown — put full amount in Expenses
         if (isDone) expDone += amt; if (isPend) expPend += amt;
       }
     }
   }
 
-  const totalDone = payDone + expDone + finDone + techDone;
-  const totalPend = payPend + expPend + finPend + techPend;
+  const totalDone = tdDone + payDone + expDone + finDone + techDone;
+  const totalPend = tdPend + payPend + expPend + finPend + techPend;
 
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   const setPill = (id, val) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -307,11 +324,13 @@ function updateMetrics() {
     else { el.style.display = 'none'; }
   };
 
-  set('m-payables', payDone ? fmtAmt(payDone) : '₹0');
-  set('m-expenses', expDone ? fmtAmt(expDone) : '₹0');
-  set('m-finance',  finDone ? fmtAmt(finDone)  : '₹0');
+  set('m-td',       tdDone   ? fmtAmt(tdDone)   : '₹0');
+  set('m-payables', payDone  ? fmtAmt(payDone)  : '₹0');
+  set('m-expenses', expDone  ? fmtAmt(expDone)  : '₹0');
+  set('m-finance',  finDone  ? fmtAmt(finDone)  : '₹0');
   set('m-tech',     techDone ? fmtAmt(techDone) : '₹0');
   set('m-total',    totalDone ? fmtAmt(totalDone) : '₹0');
+  setPill('m-td-p',       tdPend   ? fmtAmt(tdPend)   : '');
   setPill('m-payables-p', payPend  ? fmtAmt(payPend)  : '');
   setPill('m-expenses-p', expPend  ? fmtAmt(expPend)  : '');
   setPill('m-finance-p',  finPend  ? fmtAmt(finPend)  : '');
@@ -330,6 +349,7 @@ function renderAll(){
 
   document.getElementById('main').innerHTML=`
     <div class="metrics">
+      <div class="mc"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Payables</div><div class="mv" id="m-payables">—</div><span class="mpill" id="m-payables-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Expenses</div><div class="mv" id="m-expenses">—</div><span class="mpill" id="m-expenses-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Finance Cost</div><div class="mv" id="m-finance">—</div><span class="mpill" id="m-finance-p" style="display:none"></span></div>
@@ -375,9 +395,14 @@ function renderCard(item){
   // Use AI title if available, else clean the subject line
   const displayTitle = item.title && item.title !== item.subj ? item.title : cleanTitle(item.subj);
   // Use AI amount if available, else extract from subject
-  const displayAmount = item.amount || extractAmtFromSubject(item.subj);
+  // For CRM: amount comes from credit limit field, not subject
+  let displayAmount = item.amount || extractAmtFromSubject(item.subj);
+  if (!displayAmount && item.type === 'CRM') {
+    const clField = (item.fields||[]).find(f => f.label === 'Credit Limit');
+    if (clField) displayAmount = clField.value.split('·')[0].trim();
+  }
   const ast=actionStatus[item.tid]||{};
-  const fromName=(item.from||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];
+  const fromName=smartName(item.from||'');
   const namePill=fromName?`<span class="mpill2">${fromName}</span>`:'';
   const riskBadge=item.risk?`<span class="risk-${item.risk.charAt(0).toUpperCase()+item.risk.slice(1).toLowerCase()}">${item.risk.charAt(0).toUpperCase()+item.risk.slice(1)} Risk</span>`:'';
   const amtApproved=item.rohanApproved?`<span class="mpill-g">Amount Approved</span>`:'';
