@@ -575,6 +575,24 @@ function renderReportPanel() {
   const fmtAmt = n => n>=10000000 ? '₹'+(n/10000000).toFixed(2)+' Cr' : n>=100000 ? '₹'+(n/100000).toFixed(2)+' L' : '₹'+Math.round(n).toLocaleString('en-IN');
   const nameCol = activeReport === 'payables' ? 'Vendor' : 'Expense Head';
 
+  // For expenses report — group by category with subtotals
+  let tableBody = '';
+  if (activeReport === 'expenses' && data.categories) {
+    const cats = data.categories; // { catName: [rows] }
+    let rank = 1;
+    for (const [cat, catRows] of Object.entries(cats)) {
+      const catTotal = catRows.reduce((s,r) => s+r.total, 0);
+      tableBody += `<tr style="background:#F5F4F0"><td colspan="2" style="font-size:11px;font-weight:600;color:#5C5A55;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px">${cat}</td><td colspan="2" style="text-align:right;font-size:12px;font-weight:600;color:#5C5A55;padding:8px 10px">${fmtAmt(catTotal)}</td></tr>`;
+      for (const r of catRows) {
+        tableBody += `<tr><td style="color:#9E9B94;font-size:12px">${rank++}</td><td>${r.vendor}</td><td style="color:#9E9B94;font-size:12px">${r.count}×</td><td>${fmtAmt(r.total)}</td></tr>`;
+      }
+    }
+  } else {
+    rows.forEach((r,i) => {
+      tableBody += `<tr><td style="color:#9E9B94;font-size:12px">${i+1}</td><td>${r.vendor}</td><td style="color:#9E9B94;font-size:12px">${r.count}×</td><td>${fmtAmt(r.total)}</td></tr>`;
+    });
+  }
+
   panel.innerHTML = `<div class="rp">
     <div class="rp-hdr">
       <div>
@@ -587,15 +605,7 @@ function renderReportPanel() {
     </div>
     <table>
       <thead><tr><th>#</th><th>${nameCol}</th><th>Count</th><th>Total Amount</th></tr></thead>
-      <tbody>
-        ${rows.map((r,i) => `<tr>
-          <td style="color:#9E9B94;font-size:12px">${i+1}</td>
-          <td>${r.vendor}</td>
-          <td style="color:#9E9B94;font-size:12px">${r.count}×</td>
-          <td>${fmtAmt(r.total)}</td>
-        </tr>`).join('')}
-        <tr class="grand-total"><td colspan="3">Total</td><td>${fmtAmt(grandTotal)}</td></tr>
-      </tbody>
+      <tbody>${tableBody}<tr class="grand-total"><td colspan="3">Total</td><td>${fmtAmt(grandTotal)}</td></tr></tbody>
     </table>
   </div>`;
 }

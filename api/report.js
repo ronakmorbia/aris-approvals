@@ -173,18 +173,20 @@ export default async function handler(req, res) {
           const fullTotal = totalMatch ? parseInt(totalMatch[1].replace(/,/g,'')) : 0;
 
           // Scale rows to full total by ratio
-          const targetCat = type; // 'expenses' | 'finance'
-          const filteredRows = rows.filter(r => r.category === targetCat);
+          // For expenses report: include expenses + technology + salary (not finance)
+          // For finance report: include only finance rows
+          const filteredRows = type === 'finance'
+            ? rows.filter(r => r.category === 'finance')
+            : rows.filter(r => r.category !== 'finance');
           const rowTotal = rows.reduce((s,r) => s+r.amount, 0);
 
           if (rowTotal > 0 && fullTotal > 0) {
             for (const r of filteredRows) {
-              // Scale amount proportionally
               const scaled = Math.round(r.amount * fullTotal / rowTotal);
-              allRows.push({ name: r.name, amount: scaled });
+              allRows.push({ name: r.name, amount: scaled, category: r.category });
             }
           } else {
-            for (const r of filteredRows) allRows.push({ name: r.name, amount: r.amount });
+            for (const r of filteredRows) allRows.push({ name: r.name, amount: r.amount, category: r.category });
           }
         } catch(e) {}
       }));
@@ -203,7 +205,33 @@ export default async function handler(req, res) {
     const rows = [...map.values()].sort((a,b) => b.total-a.total);
     const grandTotal = rows.reduce((s,r) => s+r.total, 0);
 
-    return res.json({ rows, grandTotal, totalEmails, month, type });
+    // For expenses report — also return rows grouped by category with subtotals
+    let categories = null;
+    if (type === 'expenses') {
+      // Re-aggregate with category info from allRows
+      const catMap = {};
+      for (const r of allRows) {
+        const cat = r.category || 'Expenses';
+        const catLabel = cat === 'technology' ? 'Technology'
+          : cat === 'salary' ? 'Salary'
+          : 'Expenses';
+        if (!catMap[catLabel]) catMap[catLabel] = new Map();
+        const key = r.name.trim().toLowerCase();
+        if (!catMap[catLabel].has(key)) catMap[catLabel].set(key, { vendor: r.name, total: 0, count: 0 });
+        const v = catMap[catLabel].get(key);
+        v.total += r.amount; v.count++;
+      }
+      // Sort each category by amount, sort categories by total
+      categories = {};
+      const catOrder = Object.entries(catMap)
+        .map(([cat, m]) => ({ cat, total: [...m.values()].reduce((s,r)=>s+r.total,0) }))
+        .sort((a,b) => b.total-a.total);
+      for (const { cat } of catOrder) {
+        categories[cat] = [...catMap[cat].values()].sort((a,b) => b.total-a.total);
+      }
+    }
+
+    return res.json({ rows, grandTotal, totalEmails, month, type, categories });
 
   } catch(e) {
     return res.status(500).json({ error: e.message });
