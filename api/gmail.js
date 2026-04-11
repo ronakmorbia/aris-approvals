@@ -14,11 +14,10 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
 
-  // ── Auth: get Google OAuth URL ──────────────────────────────────────────
+  // ── Auth URL ─────────────────────────────────────────────────────────────────
   if (action === 'auth-url') {
     const url = oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      prompt: 'consent',
+      access_type: 'offline', prompt: 'consent',
       scope: [
         'https://www.googleapis.com/auth/gmail.readonly',
         'https://www.googleapis.com/auth/gmail.send',
@@ -28,12 +27,11 @@ export default async function handler(req, res) {
     return res.json({ url });
   }
 
-  // ── Auth: exchange code for tokens ──────────────────────────────────────
+  // ── Auth callback ─────────────────────────────────────────────────────────────
   if (action === 'auth-callback') {
     const { code } = req.query;
     try {
       const { tokens } = await oauth2Client.getToken(code);
-      // Redirect to homepage with tokens as URL fragment (never sent to server)
       const tokenData = encodeURIComponent(JSON.stringify(tokens));
       res.setHeader('Location', `/?tokens=${tokenData}`);
       return res.status(302).end();
@@ -42,21 +40,21 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── Requires tokens from here ────────────────────────────────────────────
+  // ── Requires tokens ───────────────────────────────────────────────────────────
   const { tokens } = req.method === 'POST' ? req.body : {};
   if (!tokens) return res.status(400).json({ error: 'No tokens provided' });
 
   oauth2Client.setCredentials(tokens);
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-  // ── Fetch inbox ──────────────────────────────────────────────────────────
+  // ── Fetch inbox ───────────────────────────────────────────────────────────────
   if (action === 'inbox') {
     try {
       const [fundsRes, crmRes, hrRes, taxRes] = await Promise.all([
-        gmail.users.messages.list({ userId: 'me', q: 'label:Funds in:inbox', maxResults: 50 }),
-        gmail.users.messages.list({ userId: 'me', q: 'label:CRM in:inbox', maxResults: 30 }),
-        gmail.users.messages.list({ userId: 'me', q: 'label:HR in:inbox', maxResults: 30 }),
-        gmail.users.messages.list({ userId: 'me', q: 'label:Tax in:inbox', maxResults: 30 })
+        gmail.users.messages.list({ userId: 'me', q: 'label:Funds in:inbox', maxResults: 20 }),
+        gmail.users.messages.list({ userId: 'me', q: 'label:CRM in:inbox', maxResults: 15 }),
+        gmail.users.messages.list({ userId: 'me', q: 'label:HR in:inbox', maxResults: 15 }),
+        gmail.users.messages.list({ userId: 'me', q: 'label:Tax in:inbox', maxResults: 10 })
       ]);
 
       const allMessages = [
@@ -66,23 +64,19 @@ export default async function handler(req, res) {
         ...(taxRes.data.messages || []).map(m => ({ ...m, cat: 'Tax' }))
       ];
 
-      // Deduplicate by threadId — keep latest message per thread
+      // Deduplicate by threadId
       const threadMap = new Map();
       for (const msg of allMessages) {
-        if (!threadMap.has(msg.threadId)) {
-          threadMap.set(msg.threadId, msg);
-        }
+        if (!threadMap.has(msg.threadId)) threadMap.set(msg.threadId, msg);
       }
 
-      // Cap at 25 most recent messages to stay within Vercel timeout
-      const msgList = [...threadMap.values()].slice(0, 25);
+      // Cap at 20 most recent to stay within timeout
+      const msgList = [...threadMap.values()].slice(0, 20);
 
       const processMsg = async (msg) => {
         try {
           const detail = await gmail.users.messages.get({
-            userId: 'me',
-            id: msg.id,
-            format: 'full'
+            userId: 'me', id: msg.id, format: 'full'
           });
 
           const headers = {};
@@ -117,11 +111,11 @@ export default async function handler(req, res) {
               return '';
             };
             const extracted = extractBody(detail.data.payload);
-            if (extracted) bodyText = extracted.slice(0, 4000);
+            if (extracted) bodyText = extracted.slice(0, 3000);
           } catch(e) {}
 
-          // Generate smart card content via Anthropic API
-          let title = headers.subject || '';
+          // AI smart card parsing
+          let title = (headers.subject || '').replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi, '').trim();
           let amount = '';
           let risk = '';
           let fields = [];
@@ -138,64 +132,31 @@ export default async function handler(req, res) {
               },
               body: JSON.stringify({
                 model: 'claude-haiku-4-5-20251001',
-                max_tokens: 600,
-                system: `You process internal approval emails for ARIS, a construction materials company. Extract structured data for the CMD's approval dashboard.
-
-NAMES: Always use first name only for all people. "Sandesh Haravade" → "Sandesh", "Divya Iyer" → "Divya", "Rohan Morbia" → "Rohan".
-
-TITLE (max 8 words, plain English, no APP- prefix):
-- HR: "Intern to FTE — 4 people" / "New hire — Backend Engineer"
-- Expenses: "Other expenses — ASL April batch"
-- Vendor payment: "Vendor payments — ASL OD & CA"
-- Trade deposit: "Trade deposit — Netwin Roadways"
-- Transfer: "Internal transfer — JS Infra Core"
-- FD: "FD break — IDBI ₹85 L"
-- CRM: "Customer creation — Casa Grande Axiom"
-
-AMOUNT: Sum all line items. Format ₹X Cr / ₹X L. Empty string if no monetary amount.
-
-RISK (CRM emails only): "High" / "Medium" / "Low" / "" based on credit team recommendation or category rating.
-
-FIELDS: Key-value pairs shown as a mini info table. Keep labels short (max 3 words). Use first names. Examples:
-- HR: Headcount, Teams, CTC/Salary (ALWAYS include if mentioned — monthly, annual, or per person), Pre-approved by, Effective date
-- CRM: Customer, Entity, Credit limit, Credit period, Insurance, Location, Manager
-- Transfer: From, To, Amount, Purpose, Bank
-- FD: Bank, Company, Amount, Action (break/placement)
-- Trade deposit: Party, Paying company, Amount, Purpose
-
-ROWS (for expenses, vendor payments — top 5 by amount descending):
-Each row must have: name (first name or short vendor name), category (ONLY one of: "Salary" / "Expenses" / "Finance Cost"), amount.
-Categorisation rules:
-- "Salary" → payroll, salary, wages, HR payments
-- "Finance Cost" → interest, NCD fees, bank charges, factoring, OD interest, loan repayment
-- "Expenses" → everything else (vendor payments, service fees, professional fees, material costs, operational)
-
-NOTE: 1-2 sentence context. For done/FYI: who requested, who approved, outcome.
-
-Return ONLY valid JSON:
+                max_tokens: 500,
+                system: `You process internal approval emails for ARIS. Extract structured data for the CMD approval dashboard.
+Always use first names only. Return ONLY valid JSON in this exact format:
 {
-  "title": "...",
-  "amount": "...",
-  "risk": "",
-  "fields": [{"label": "...", "value": "..."}],
-  "rows": [{"name": "...", "category": "Salary|Expenses|Finance Cost", "amount": "..."}],
-  "note": "..."
+  "title": "Short plain English title, max 8 words, no APP- prefix",
+  "amount": "₹X Cr or ₹X L or empty string",
+  "risk": "High or Medium or Low or empty string (CRM only)",
+  "fields": [{"label": "Short label", "value": "value"}],
+  "rows": [{"name": "vendor/person", "category": "Payables or Salary or Expenses or Finance Cost", "amount": "₹X L"}],
+  "note": "1-2 sentence context"
 }
-Fields and rows can be empty arrays if not applicable.`,
+Fields: key facts for the card (from, amount, account, party etc).
+Rows: only for expense/payment emails, top 5 by amount.
+Categories: Payables=vendor/material payments, Finance Cost=interest/bank charges/NCD/factoring, Salary=payroll/wages, Expenses=professional fees/operational.`,
                 messages: [{
                   role: 'user',
-                  content: `Label: ${msg.cat}
-Status: ${status}
-From: ${headers.from}
-Subject: ${headers.subject}
-Body:
-${bodyText}`
+                  content: `Label: ${msg.cat}\nStatus: ${status}\nFrom: ${headers.from}\nSubject: ${headers.subject}\nBody:\n${bodyText}`
                 }]
               })
             });
+
             const aiData = await aiRes.json();
             const aiText = aiData.content?.[0]?.text || '';
-            const s = aiText.indexOf('{'), e = aiText.lastIndexOf('}');
+            const s = aiText.indexOf('{');
+            const e = aiText.lastIndexOf('}');
             if (s !== -1 && e !== -1) {
               const parsed = JSON.parse(aiText.slice(s, e + 1));
               title = parsed.title || title;
@@ -206,10 +167,25 @@ ${bodyText}`
               note = parsed.note || '';
             }
           } catch(e) {
-            // AI failed — show snippet so card is never blank
-            const snip = (detail.data.snippet || '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
-            note = snip || 'Could not parse email content.';
-            fields = [{ label: 'From', value: (headers.from||'').replace(/<[^>]+>/g,'').trim() }, { label: 'Subject', value: headers.subject || '' }];
+            // AI failed — use snippet as fallback so card is never blank
+            const snip = (detail.data.snippet || '')
+              .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+            note = snip || 'Email received.';
+            fields = [
+              { label: 'From', value: (headers.from || '').replace(/<[^>]+>/g,'').trim() },
+              { label: 'Date', value: headers.date || '' }
+            ];
+          }
+
+          // Detect Rohan pre-approval and approvalPill
+          const bodyLower = bodyText.toLowerCase();
+          const rohanApproved = bodyLower.includes('rohan') && (bodyLower.includes('approved') || bodyLower.includes('approve'));
+          let approvalPill = '';
+          if (status === 'fyi') {
+            if (bodyLower.includes('transfer') && bodyLower.includes('approv')) approvalPill = 'Transfer Approved';
+            else if ((bodyLower.includes('limit') || bodyLower.includes('credit')) && bodyLower.includes('approv')) approvalPill = 'Limit Approved';
+            else if (bodyLower.includes('amount') && bodyLower.includes('approv')) approvalPill = 'Amount Approved';
+            else if ((bodyLower.includes('nishita') || bodyLower.includes('divya')) && bodyLower.includes('approv')) approvalPill = 'Approved';
           }
 
           return {
@@ -230,19 +206,12 @@ ${bodyText}`
             isUnread,
             isCc,
             status,
-            rohanApproved: bodyText.toLowerCase().includes('rohan') && (bodyText.toLowerCase().includes('approved') || bodyText.toLowerCase().includes('approve')),
-            approvalPill: (() => {
-              const b = bodyText.toLowerCase();
-              if (b.includes('transfer') && (b.includes('approved') || b.includes('approve'))) return 'Transfer Approved';
-              if ((b.includes('limit') || b.includes('credit')) && (b.includes('approved') || b.includes('approve'))) return 'Limit Approved';
-              if (b.includes('amount') && (b.includes('approved') || b.includes('approve'))) return 'Amount Approved';
-              if (b.includes('nishita') || b.includes('divya')) {
-                if (b.includes('approved') || b.includes('approve')) return 'Approved';
-              }
-              return '';
-            })()
-          });
-        } catch (e) { return null; }
+            rohanApproved,
+            approvalPill
+          };
+        } catch(e) {
+          return null;
+        }
       };
 
       // Process all messages in parallel
@@ -250,48 +219,51 @@ ${bodyText}`
       const items = results.filter(Boolean);
 
       return res.json({ items, refreshedTokens: oauth2Client.credentials });
-    } catch (e) {
+    } catch(e) {
       return res.status(500).json({ error: e.message });
     }
   }
 
-  // ── Mark thread as read ──────────────────────────────────────────────────
+  // ── Mark as read ──────────────────────────────────────────────────────────────
   if (action === 'mark-read') {
     const { tid } = req.body;
     try {
       await gmail.users.threads.modify({
-        userId: 'me',
-        id: tid,
+        userId: 'me', id: tid,
         requestBody: { removeLabelIds: ['UNREAD'] }
       });
       return res.json({ ok: true, refreshedTokens: oauth2Client.credentials });
-    } catch (e) {
+    } catch(e) {
       return res.status(500).json({ error: e.message });
     }
   }
 
-  // ── Send reply ───────────────────────────────────────────────────────────
+  // ── Send reply ────────────────────────────────────────────────────────────────
   if (action === 'send') {
     const { tid, to, cc, subject, body } = req.body;
     try {
-      // Get thread to find last message ID for In-Reply-To header
       const thread = await gmail.users.threads.get({ userId: 'me', id: tid, format: 'metadata' });
-      const msgs = thread.data.messages;
+      const msgs = thread.data.messages || [];
       const lastMsg = msgs[msgs.length - 1];
-      const lastMsgId = lastMsg.payload.headers.find(h => h.name === 'Message-Id')?.value || '';
+      const lastMsgId = lastMsg?.id || '';
+      const lastHeaders = {};
+      for (const h of (lastMsg?.payload?.headers || [])) {
+        lastHeaders[h.name.toLowerCase()] = h.value;
+      }
+      const messageId = lastHeaders['message-id'] || '';
+      const replySubject = subject.startsWith('Re:') ? subject : `Re: ${subject}`;
 
-      const replySubject = subject.startsWith('Re:') ? subject : 'Re: ' + subject;
       const emailLines = [
         `From: Ronak Morbia <ronak@aris.in>`,
         `To: ${to}`,
         cc ? `Cc: ${cc}` : '',
         `Subject: ${replySubject}`,
-        `In-Reply-To: ${lastMsgId}`,
-        `References: ${lastMsgId}`,
+        messageId ? `In-Reply-To: ${messageId}` : '',
+        messageId ? `References: ${messageId}` : '',
         `Content-Type: text/plain; charset=utf-8`,
         ``,
         body
-      ].filter(l => l !== null && l !== undefined);
+      ].filter(l => l !== '');
 
       const raw = Buffer.from(emailLines.join('\r\n'))
         .toString('base64')
@@ -302,15 +274,13 @@ ${bodyText}`
         requestBody: { raw, threadId: tid }
       });
 
-      // Mark thread as read after sending
       await gmail.users.threads.modify({
-        userId: 'me',
-        id: tid,
+        userId: 'me', id: tid,
         requestBody: { removeLabelIds: ['UNREAD'] }
       });
 
       return res.json({ ok: true, refreshedTokens: oauth2Client.credentials });
-    } catch (e) {
+    } catch(e) {
       return res.status(500).json({ error: e.message });
     }
   }
