@@ -83,7 +83,8 @@ function categorise(name, purpose, emailType) {
   const s = (name + ' ' + purpose).toLowerCase();
   if (/salary|payroll|wages|stipend|staff/i.test(s)) return 'Salary';
   if (/interest|ncd|bank charge|factoring|od |loan repay|finance|processing fee/i.test(s)) return 'Finance Cost';
-  if (/software|saas|tech|crm|erp|app|platform|subscription|aws|azure|google cloud|techmagify|sazs|weightment|automation|digital|it |web |api/i.test(s)) return 'Technology';
+  // Technology: only clearly identifiable tech tools/platforms/subscriptions
+  if (/\baws\b|\bazure\b|google cloud|techmagify|sazs apps|\bslack\b|\bdropbox\b|\bfigma\b|\bnotion\b|\bcursor\b|openai|anthropic|atlassian|rebrandly|gupshup|relic\b|creativeit|\bsaas\b|corp cc|credit card.*tech|google workspace|microsoft 365|github|datadog|mixpanel|hubspot|salesforce|jira|zoom|webex/i.test(s)) return 'Technology';
   if (emailType === 'VPAY') return 'Payables';
   // EXP emails never have Payables — always Expenses
   return 'Expenses';
