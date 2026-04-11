@@ -118,12 +118,12 @@ textarea:focus{border-color:#9E9B94}
 <header>
 <div class="hinner">
   <div class="logo">
-    <div class="lm">AR</div>
-    <span class="ln">ARIS</span><span class="ls">·</span><span class="lb">Approvals</span>
+    <img src="https://framerusercontent.com/images/DNuphwyKu50xjmPz9WCm4Cel6kk.png" alt="ARIS" style="height:22px;width:auto;display:block;">
+    <span class="ls">·</span><span class="lb">Approvals</span>
   </div>
   <div class="ha">
     <span class="ts" id="ts"></span>
-    <button class="rbtn" id="rbtn" onclick="loadInbox()">↺ Refresh</button>
+    <button class="rbtn" id="rbtn" onclick="loadInbox()">Refresh</button>
   </div>
 </div>
 </header>
@@ -175,7 +175,7 @@ async function startAuth(){const r=await fetch('/api/gmail?action=auth-url');con
 
 async function loadInbox(){
   const btn=document.getElementById('rbtn');
-  if(btn){btn.disabled=true;btn.textContent='↺ Loading…';}
+  if(btn){btn.disabled=true;btn.textContent='Refreshing…';}
   document.getElementById('main').innerHTML='<div class="loading">Fetching your inbox…</div>';
   try{
     const r=await fetch('/api/gmail?action=inbox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokens})});
@@ -190,7 +190,7 @@ async function loadInbox(){
   }catch(e){
     if(e.message.includes('invalid_grant')||e.message.includes('401')){saveTokens(null);localStorage.removeItem('aris_tokens');showAuth();return;}
     document.getElementById('main').innerHTML=`<div class="error-bar">Error: ${e.message}</div>`;
-  }finally{if(btn){btn.disabled=false;btn.textContent='↺ Refresh';}}
+  }finally{if(btn){btn.disabled=false;btn.textContent='Refresh';}}
 }
 
 function detectType(s){s=(s||'').toUpperCase();if(s.includes('APP-VPAY'))return'VPAY';if(s.includes('APP-TD'))return'TD';if(s.includes('APP-TRF'))return'TRF';if(s.includes('APP-EXP'))return'EXP';if(s.includes('APP-FD'))return'FD';if(s.includes('CRM'))return'CRM';if(s.includes('HR')||s.includes('APP-HR'))return'HR';return'GEN';}
