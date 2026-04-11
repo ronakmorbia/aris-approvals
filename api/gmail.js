@@ -7,20 +7,17 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GMAIL_REDIRECT_URI
 );
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function cleanTitle(subj) {
   return (subj || '')
     .replace(/^(Re:|RE:|Fwd:|FWD:)\s*/gi, '')
-    .replace(/^APP-[A-Z]+-?\s*[-–:]\s*/gi, '')
+    .replace(/^APP-[A-Z]+-?\s*[-:]\s*/gi, '')
     .replace(/^APP-[A-Z]+\s+/gi, '')
     .replace(/^CRM-APP:\s*/gi, '')
     .replace(/^HR-APP:\s*/gi, '')
     .replace(/\s+[-–]\s+ASL\s+\d{2}-\d{2}-\d{4}/gi, '')
     .replace(/\s+[-–]\s+\d{2}-\d{2}-\d{4}/gi, '')
     .replace(/\s+of\s+Rs\.?\s*[\d,]+\s*\/-?/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/\s+/g, ' ').trim();
 }
 
 function fmtAmt(n) {
@@ -33,7 +30,7 @@ function fmtAmt(n) {
 function extractAmtFromSubject(subj) {
   const s = subj || '';
   const rs = s.match(/Rs\.?\s*([\d,]+)\s*(?:\/[-]?)?/i);
-  if (rs) { const n = parseInt(rs[1].replace(/,/g,'')); if (n > 0) return fmtAmt(n); }
+  if (rs) { const n = parseInt(rs[1].replace(/,/g, '')); if (n > 0) return fmtAmt(n); }
   const cr = s.match(/(\d+\.?\d*)\s*Cr/i); if (cr) return '₹' + cr[1] + ' Cr';
   const l = s.match(/(\d+\.?\d*)\s*L(?:acs?|akhs?)?/i); if (l) return '₹' + l[1] + ' L';
   return '';
@@ -52,25 +49,27 @@ function detectType(subj) {
 }
 
 function firstName(from) {
-  const s = (from || '').replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
-  // If it looks like an email address, extract the name part before @
-  if (s.includes('@') && !s.includes(' ')) {
-    const local = s.split('@')[0];
-    // Convert "trupti.gupta" -> "Trupti"
-    return local.split('.')[0].charAt(0).toUpperCase() + local.split('.')[0].slice(1);
+  const raw = (from || '').replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
+  // If it's a bare email address like trupti.gupta@aris.in
+  if (raw.includes('@') && !raw.includes(' ')) {
+    const local = raw.split('@')[0];
+    const part = local.split('.')[0];
+    return part.charAt(0).toUpperCase() + part.slice(1);
   }
-  return s.split(/\s+/)[0];
+  return raw.split(/\s+/)[0];
 }
 
 function decodeBody(data) {
-  try { return Buffer.from((data||'').replace(/-/g,'+').replace(/_/g,'/'), 'base64').toString('utf-8'); }
+  try { return Buffer.from((data || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8'); }
   catch { return ''; }
 }
 
 function extractPlainText(payload) {
   if (!payload) return '';
   if (payload.mimeType === 'text/plain' && payload.body?.data) return decodeBody(payload.body.data);
-  if (payload.parts) { for (const p of payload.parts) { const t = extractPlainText(p); if (t) return t; } }
+  if (payload.parts) {
+    for (const p of payload.parts) { const t = extractPlainText(p); if (t) return t; }
+  }
   return '';
 }
 
@@ -89,30 +88,26 @@ function categorise(name, purpose, emailType) {
   return 'Expenses';
 }
 
-// ── Parse Excel attachment ────────────────────────────────────────────────────
-function parseExcel(base64Data) {
+function parseExcel(base64Data, emailType) {
   try {
-    const b64 = (base64Data || '').replace(/-/g,'+').replace(/_/g,'/');
+    const b64 = (base64Data || '').replace(/-/g, '+').replace(/_/g, '/');
     const buf = Buffer.from(b64, 'base64');
     const wb = XLSX.read(buf, { type: 'buffer' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-    // Find header row — look for row containing name-like and amount-like columns
     let hIdx = -1, nameCol = -1, amtCol = -1, purposeCol = -1;
     for (let i = 0; i < Math.min(15, rows.length); i++) {
       const row = rows[i].map(c => String(c).toLowerCase().trim());
       const ni = row.findIndex(c => /vendor|party|name|payee|particular|expense head|beneficiary/i.test(c));
-      const ai = row.findIndex(c => /^amount$|^amt$|payment amount|debit|₹/i.test(c));
-      // Also try looser match
-      const ai2 = ai >= 0 ? ai : row.findIndex(c => /amount|amt/i.test(c) && !c.includes('in words'));
+      const ai = row.findIndex(c => /^amount$|^amt$|payment amount|debit/i.test(c));
+      const ai2 = ai >= 0 ? ai : row.findIndex(c => /amount|amt/i.test(c) && !c.includes('words'));
       if (ni >= 0 && ai2 >= 0) {
         hIdx = i; nameCol = ni; amtCol = ai2;
         purposeCol = row.findIndex(c => /purpose|remark|narration|description|brief|head/i.test(c) && c !== row[ni]);
         break;
       }
     }
-
     if (hIdx < 0) return [];
 
     const dataRows = [];
@@ -120,23 +115,20 @@ function parseExcel(base64Data) {
       const r = rows[i];
       const name = String(r[nameCol] || '').trim();
       const amtRaw = r[amtCol];
-      const amt = typeof amtRaw === 'number' ? amtRaw : parseFloat(String(amtRaw).replace(/[₹,\s]/g,'')) || 0;
+      const amt = typeof amtRaw === 'number' ? amtRaw : parseFloat(String(amtRaw).replace(/[₹,\s]/g, '')) || 0;
       if (name && amt > 0 && !/total|grand total|sub.?total/i.test(name)) {
         const purpose = purposeCol >= 0 ? String(r[purposeCol] || '').trim() : '';
-        dataRows.push({ name, amount: amt, purpose, category: categorise(name, purpose, type) });
+        dataRows.push({ name, amount: amt, purpose, category: categorise(name, purpose, emailType) });
       }
     }
-
-    // Sort by amount desc, return top 5
     dataRows.sort((a, b) => b.amount - a.amount);
     return dataRows.slice(0, 5).map(r => ({ ...r, amount: fmtAmt(r.amount) }));
-  } catch(e) {
+  } catch (e) {
     console.error('Excel parse error:', e.message);
     return [];
   }
 }
 
-// ── Parse EXP rows from Rohan's reply body ───────────────────────────────────
 function parseExpenseRows(body) {
   const rows = [];
   const lines = body.split('\n');
@@ -152,20 +144,18 @@ function parseExpenseRows(body) {
       const amt = parseInt(m[2].replace(/,/g, ''));
       const purpose = (m[3] || '').trim();
       if (name && amt > 0 && !/expense\s+head|amount/i.test(name)) {
-        rows.push({ name, amount: fmtAmt(amt), purpose, category: categorise(name, purpose, type) });
+        rows.push({ name, amount: fmtAmt(amt), purpose, category: categorise(name, purpose, 'EXP') });
       }
     }
   }
   return rows.slice(0, 5);
 }
 
-// ── Extract CRM risk ──────────────────────────────────────────────────────────
 function extractCrmRisk(body) {
   const m = (body || '').match(/Recommendation from Credit Team\s*:\s*(High|Medium|Low)/i);
   return m ? m[1] : '';
 }
 
-// ── Extract CRM fields ────────────────────────────────────────────────────────
 function extractCrmFields(body) {
   const fields = [];
   const patterns = [
@@ -184,7 +174,44 @@ function extractCrmFields(body) {
   return fields;
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
+function parseTDAmounts(body) {
+  const rows = [];
+  let total = 0;
+  const lines = body.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+  // Try multiline: date on one line, amount on next
+  for (let i = 0; i < lines.length; i++) {
+    const dateMatch = lines[i].match(/^(\d{2}-\d{2}-\d{4})$/);
+    if (dateMatch) {
+      let amtStr = '';
+      // Check same line first
+      const sameLine = lines[i].match(/(\d{2}-\d{2}-\d{4})\s+([\d,]+)/);
+      if (sameLine) {
+        amtStr = sameLine[2];
+      } else if (i + 1 < lines.length && /^[\d,]+$/.test(lines[i + 1])) {
+        amtStr = lines[i + 1];
+      }
+      if (amtStr) {
+        const amt = parseInt(amtStr.replace(/,/g, ''));
+        if (amt > 0) { total += amt; rows.push({ date: dateMatch[1], amount: amt }); }
+      }
+    }
+  }
+
+  // Fallback: same line pattern
+  if (!rows.length) {
+    for (const line of lines) {
+      const m = line.match(/(\d{2}-\d{2}-\d{4})\s+([\d,]+)/);
+      if (m) {
+        const amt = parseInt(m[2].replace(/,/g, ''));
+        if (amt > 0) { total += amt; rows.push({ date: m[1], amount: amt }); }
+      }
+    }
+  }
+
+  return { rows, total };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -196,7 +223,7 @@ export default async function handler(req, res) {
   if (action === 'auth-url') {
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline', prompt: 'consent',
-      scope: ['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.send','https://www.googleapis.com/auth/gmail.modify']
+      scope: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.modify']
     });
     return res.json({ url });
   }
@@ -206,7 +233,7 @@ export default async function handler(req, res) {
       const { tokens } = await oauth2Client.getToken(req.query.code);
       res.setHeader('Location', `/?tokens=${encodeURIComponent(JSON.stringify(tokens))}`);
       return res.status(302).end();
-    } catch(e) { return res.status(500).json({ error: e.message }); }
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   const { tokens } = req.method === 'POST' ? req.body : {};
@@ -214,7 +241,6 @@ export default async function handler(req, res) {
   oauth2Client.setCredentials(tokens);
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-  // ── INBOX ─────────────────────────────────────────────────────────────────
   if (action === 'inbox') {
     try {
       const [fundsRes, crmRes, hrRes, taxRes] = await Promise.all([
@@ -225,30 +251,29 @@ export default async function handler(req, res) {
       ]);
 
       const all = [
-        ...(fundsRes.data.messages||[]).map(m=>({...m,cat:'Funds'})),
-        ...(crmRes.data.messages||[]).map(m=>({...m,cat:'CRM'})),
-        ...(hrRes.data.messages||[]).map(m=>({...m,cat:'HR'})),
-        ...(taxRes.data.messages||[]).map(m=>({...m,cat:'Tax'})),
+        ...(fundsRes.data.messages || []).map(m => ({ ...m, cat: 'Funds' })),
+        ...(crmRes.data.messages || []).map(m => ({ ...m, cat: 'CRM' })),
+        ...(hrRes.data.messages || []).map(m => ({ ...m, cat: 'HR' })),
+        ...(taxRes.data.messages || []).map(m => ({ ...m, cat: 'Tax' })),
       ];
 
-      // Deduplicate by threadId
       const seen = new Map();
       for (const m of all) { if (!seen.has(m.threadId)) seen.set(m.threadId, m); }
       const msgList = [...seen.values()];
 
-      // Step 1: fetch metadata for ALL in parallel (fast)
+      // Step 1: metadata for all in parallel
       const metaList = await Promise.all(msgList.map(async msg => {
         try {
-          const d = await gmail.users.messages.get({ userId:'me', id:msg.id, format:'metadata', metadataHeaders:['From','To','Cc','Subject','Date'] });
+          const d = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'metadata', metadataHeaders: ['From', 'To', 'Cc', 'Subject', 'Date'] });
           const h = {};
-          for (const hdr of (d.data.payload?.headers||[])) h[hdr.name.toLowerCase()] = hdr.value;
+          for (const hdr of (d.data.payload?.headers || [])) h[hdr.name.toLowerCase()] = hdr.value;
           const labelIds = d.data.labelIds || [];
           const isUnread = labelIds.includes('UNREAD');
-          const to = (h.to||'').toLowerCase();
+          const to = (h.to || '').toLowerCase();
           const isCc = !to.includes('ronak@aris.in') && !to.includes('ronak@arisinfra.one');
           const status = !isUnread ? 'done' : isCc ? 'fyi' : 'pending';
-          const type = detectType(h.subject||'');
-          return { msg, h, status, isUnread, isCc, type, snippet: d.data.snippet||'' };
+          const type = detectType(h.subject || '');
+          return { msg, h, status, isUnread, isCc, type, snippet: d.data.snippet || '' };
         } catch { return null; }
       }));
 
@@ -256,7 +281,6 @@ export default async function handler(req, res) {
       const pending = valid.filter(m => m.status !== 'done');
       const done = valid.filter(m => m.status === 'done');
 
-      // Step 2: for pending/fyi fetch full message + thread if EXP
       const processMsg = async (meta) => {
         const { msg, h, status, isUnread, isCc, type, snippet } = meta;
         const subj = h.subject || '';
@@ -270,53 +294,49 @@ export default async function handler(req, res) {
 
         try {
           if (type === 'EXP') {
-            // Fetch full thread to get Rohan's reply
-            const thread = await gmail.users.threads.get({ userId:'me', id:msg.threadId, format:'full' });
+            const thread = await gmail.users.threads.get({ userId: 'me', id: msg.threadId, format: 'full' });
             const messages = thread.data.messages || [];
 
-            // Check if latest message says "please ignore" — if so, flag it
+            // Check latest message for cancellation
             const latestMsg = messages[messages.length - 1];
-            const latestBody = extractPlainText(latestMsg?.payload || {}).toLowerCase();
+            const latestBody = extractPlainText(latestMsg?.payload || {});
             const isCancelled = /please ignore|kindly ignore|disregard/i.test(latestBody);
 
             if (isCancelled) {
-              // Find the original amount from subject
-              const cancelNote = 'Sandesh has asked to ignore this request. Please disregard.';
               return {
-                tid: msg.threadId, mid: msg.id, cat: msg.cat,
-                subj, type,
+                tid: msg.threadId, mid: msg.id, cat: msg.cat, subj, type,
                 title: cleanTitle(subj),
                 amount: extractAmtFromSubject(subj),
-                risk: '', rows: [], note: cancelNote,
-                fields: [
-                  { label: 'Status', value: '⚠️ Cancelled — Please Ignore' },
-                  { label: 'From', value: firstName(h.from) },
-                ],
-                from: h.from||'', date: h.date||'', to: h.to||'', cc: h.cc||'',
+                risk: '', rows: [],
+                note: 'Sandesh has asked to ignore this request. Please disregard.',
+                fields: [{ label: 'Status', value: 'Cancelled — Please Ignore' }, { label: 'From', value: firstName(h.from) }],
+                from: h.from || '', date: h.date || '', to: h.to || '', cc: h.cc || '',
                 isUnread, isCc, status, rohanApproved: false, approvalPill: ''
               };
             }
 
-            // Find Rohan's message in the thread
+            // Find Rohan's reply for expense breakdown
             const rohanMsg = messages.find(m =>
-              (m.payload?.headers||[]).find(hh => hh.name==='From' && hh.value.toLowerCase().includes('rohan'))
+              (m.payload?.headers || []).find(hh => hh.name === 'From' && hh.value.toLowerCase().includes('rohan'))
             );
-
             if (rohanMsg) {
               const rohanBody = extractPlainText(rohanMsg.payload);
               rows = parseExpenseRows(rohanBody);
               rohanApproved = true;
               note = 'Expenses pre-approved by Rohan. Top 5 breakdown provided.';
+            } else {
+              note = 'Approved by Rohan. Expense list in attached Excel.';
+              rohanApproved = true;
             }
 
-            // Get total from Sandesh's original
+            // Total from Sandesh's original message
             const sandeshMsg = messages.find(m =>
-              (m.payload?.headers||[]).find(hh => hh.name==='From' && hh.value.toLowerCase().includes('sandesh'))
+              (m.payload?.headers || []).find(hh => hh.name === 'From' && hh.value.toLowerCase().includes('sandesh'))
             );
             if (sandeshMsg) {
-              const sandeshBody = extractPlainText(sandeshMsg.payload);
-              const tm = sandeshBody.match(/Total Amount\s*[:\s]+([\d,]+)\s*\/-?/i);
-              if (tm) amount = fmtAmt(parseInt(tm[1].replace(/,/g,'')));
+              const sb = extractPlainText(sandeshMsg.payload);
+              const tm = sb.match(/Total Amount\s*[:\s]+([\d,]+)\s*\/-?/i);
+              if (tm) amount = fmtAmt(parseInt(tm[1].replace(/,/g, '')));
             }
 
             fields = [
@@ -326,19 +346,15 @@ export default async function handler(req, res) {
             ];
 
           } else if (type === 'VPAY') {
-            // Fetch full message to get Excel attachment
-            const full = await gmail.users.messages.get({ userId:'me', id:msg.id, format:'full' });
+            const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
             const body = extractPlainText(full.data.payload);
 
-            // Find xlsx attachment
             const findAtts = (parts) => {
               const atts = [];
               if (!parts) return atts;
               for (const p of parts) {
-                if (p.filename && p.body?.attachmentId &&
-                    (p.mimeType?.includes('spreadsheet') || p.filename.endsWith('.xlsx'))) {
+                if (p.filename && p.body?.attachmentId && (p.mimeType?.includes('spreadsheet') || p.filename.endsWith('.xlsx')))
                   atts.push({ name: p.filename, id: p.body.attachmentId });
-                }
                 if (p.parts) atts.push(...findAtts(p.parts));
               }
               return atts;
@@ -346,108 +362,85 @@ export default async function handler(req, res) {
             const atts = findAtts([full.data.payload]);
 
             if (atts.length > 0) {
-              const attRes = await gmail.users.messages.attachments.get({ userId:'me', messageId:msg.id, id:atts[0].id });
-              rows = parseExcel(attRes.data.data);
+              const attRes = await gmail.users.messages.attachments.get({ userId: 'me', messageId: msg.id, id: atts[0].id });
+              rows = parseExcel(attRes.data.data, 'VPAY');
             }
 
-            // Total from body
             const tm = body.match(/Total Amount\s*[:\s]+Rs\.?\s*([\d,]+)/i);
-            if (tm) amount = fmtAmt(parseInt(tm[1].replace(/,/g,'')));
+            if (tm) amount = fmtAmt(parseInt(tm[1].replace(/,/g, '')));
 
+            const accts = subj.includes('OD & CA') ? 'OD & CA' : subj.includes('OD') ? 'OD' : 'CA';
             fields = [
               { label: 'Company', value: 'Arisinfra Solutions Limited' },
-              { label: 'Accounts', value: subj.includes('OD') ? 'OD & CA' : 'CA' },
+              { label: 'Accounts', value: accts },
               { label: 'Total', value: amount },
             ];
             note = rows.length ? `Top ${rows.length} vendors shown. Full list in attached Excel.` : 'Approved sheet attached.';
 
+          } else if (type === 'TD') {
+            const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+            const body = extractPlainText(full.data.payload);
+
+            // Extract party name from subject
+            const party = subj
+              .replace(/^APP-TD\s*[-–]?\s*(?:\d+\.?\d*\s*Cr?\s*)?(?:Deposit\s*[-–]?\s*)?/i, '')
+              .replace(/\s*[-–]\s*(ASL|BIPL)\s*$/i, '')
+              .replace(/-ASL$/i, '')
+              .trim();
+
+            const { rows: tdRows, total } = parseTDAmounts(body);
+            if (total > 0) amount = fmtAmt(total);
+
+            rows = tdRows.map(r => ({
+              name: r.date,
+              amount: fmtAmt(r.amount),
+              purpose: 'Trade Deposit',
+              category: 'Payables'
+            }));
+
+            const account = body.includes('HDFC') ? 'HDFC Account-9899' : body.includes('Axis') ? 'BIPL-Axis Bank' : 'See email';
+            fields = [
+              { label: 'Party', value: party || 'See email' },
+              { label: 'Company', value: body.includes('Buildmex') ? 'Buildmex Infra Pvt Ltd' : 'Arisinfra Solutions Limited' },
+              { label: 'Account', value: account },
+              { label: 'Total', value: amount },
+            ];
+            note = `Trade deposit request from Trupti for ${party || 'party'}.`;
+
           } else if (type === 'CRM') {
-            const full = await gmail.users.messages.get({ userId:'me', id:msg.id, format:'full' });
+            const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
             const body = extractPlainText(full.data.payload);
             const trimmed = stripQuotes(body);
             risk = extractCrmRisk(trimmed);
             fields = extractCrmFields(trimmed);
-            note = `Credit approval request from Divya. ${risk ? risk + ' Risk.' : ''}`;
-
-          } else if (type === 'TD') {
-            const full = await gmail.users.messages.get({ userId:'me', id:msg.id, format:'full' });
-            const body = extractPlainText(full.data.payload);
-            // Extract party name from subject
-            const party = subj.replace(/^APP-TD\s*-\s*Deposit\s*-\s*/i,'').replace(/-ASL$/i,'').trim();
-            // Extract amount rows from body — dates and amounts may be on separate lines
-            const amtRows = [];
-            let total = 0;
-            const lines = body.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-            for (let i = 0; i < lines.length; i++) {
-              // Look for a date line
-              const dateMatch = lines[i].match(/^(\d{2}-\d{2}-\d{4})$/);
-              if (dateMatch) {
-                // Amount may be on same line or next non-empty line
-                let amtStr = '';
-                const sameLine = lines[i].match(/(\d{2}-\d{2}-\d{4})\s+([\d,]+)/);
-                if (sameLine) {
-                  amtStr = sameLine[2];
-                } else if (i + 1 < lines.length) {
-                  const nextLine = lines[i + 1].trim();
-                  if (/^[\d,]+$/.test(nextLine)) amtStr = nextLine;
-                }
-                if (amtStr) {
-                  const amt = parseInt(amtStr.replace(/,/g,''));
-                  if (amt > 0) {
-                    total += amt;
-                    amtRows.push({ name: dateMatch[1], amount: fmtAmt(amt), purpose: 'Trade Deposit', category: 'Payables' });
-                  }
-                }
-              }
-            }
-            // Also try same-line pattern as fallback
-            if (!amtRows.length) {
-              for (const line of lines) {
-                const m = line.match(/(\d{2}-\d{2}-\d{4})\s+([\d,]+)/);
-                if (m) {
-                  const amt = parseInt(m[2].replace(/,/g,''));
-                  total += amt;
-                  amtRows.push({ name: m[1], amount: fmtAmt(amt), purpose: 'Trade Deposit', category: 'Payables' });
-                }
-              }
-            }
-            if (total > 0) amount = fmtAmt(total);
-            rows = amtRows;
-            // Party name from subject
-            const party = subj.replace(/^APP-TD\s*[-–]?\s*(?:\d+\.?\d*\s*Cr?\s*)?(?:Deposit\s*[-–]?\s*)?/i,'').replace(/\s*[-–]\s*(ASL|BIPL)\s*$/i,'').replace(/-ASL$/i,'').trim();
-            fields = [
-              { label: 'Party', value: party || 'See email' },
-              { label: 'Company', value: 'Arisinfra Solutions Limited' },
-              { label: 'Account', value: body.includes('HDFC') ? 'HDFC Account-9899' : body.includes('Axis') ? 'BIPL-Axis Bank' : 'See email' },
-              { label: 'Total', value: amount },
-            ];
-            fields = [
-              { label: 'Party', value: party },
-              { label: 'Company', value: 'Arisinfra Solutions Limited' },
-              { label: 'Account', value: 'HDFC Account-9899' },
-              { label: 'Total', value: amount },
-            ];
-            note = `Trade deposit request from Trupti for ${party}.`;
+            note = `Credit approval request from Divya.${risk ? ' Credit team recommends ' + risk + ' Risk.' : ''}`;
 
           } else if (type === 'TRF') {
-            // Check if Nishita approved
-            const bodyLow = snippet.toLowerCase();
-            if (bodyLow.includes('approved') && status === 'fyi') approvalPill = 'Transfer Approved';
-            fields = [{ label: 'Approved By', value: 'Nishita' }];
+            const snipLow = snippet.toLowerCase();
+            if (snipLow.includes('approved') && status === 'fyi') approvalPill = 'Transfer Approved';
+            const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+            const body = extractPlainText(full.data.payload);
+            // Extract transfer details
+            const fromMatch = body.match(/From:\s*(.+?)(?:\r?\n|To:)/i);
+            const toMatch = body.match(/To:\s*(.+?)(?:\r?\n|Amount:)/i);
+            const amtMatch = body.match(/Amount:\s*(.+?)(?:\r?\n|Transfer)/i);
+            if (fromMatch) fields.push({ label: 'From', value: fromMatch[1].trim() });
+            if (toMatch) fields.push({ label: 'To', value: toMatch[1].trim() });
+            if (amtMatch) { fields.push({ label: 'Amount', value: amtMatch[1].trim() }); amount = amtMatch[1].trim(); }
+            fields.push({ label: 'Approved By', value: 'Nishita' });
             note = 'Internal transfer for group companies. Approved by Nishita, you are in CC.';
 
           } else if (type === 'HR') {
-            const full = await gmail.users.messages.get({ userId:'me', id:msg.id, format:'full' });
-            const body = stripQuotes(extractPlainText(full.data.payload)).slice(0, 1500);
-            note = body.slice(0, 200).replace(/\r\n/g,' ').trim();
+            const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+            const body = stripQuotes(extractPlainText(full.data.payload)).slice(0, 500);
+            note = body.replace(/\r\n/g, ' ').trim().slice(0, 200);
             fields = [{ label: 'From', value: firstName(h.from) }];
 
           } else {
-            note = snippet.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'");
+            note = snippet.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
             fields = [{ label: 'From', value: firstName(h.from) }];
           }
 
-          // Detect fyi approval pill
           if (status === 'fyi' && !approvalPill) {
             const sl = snippet.toLowerCase();
             if (sl.includes('approved')) {
@@ -457,58 +450,52 @@ export default async function handler(req, res) {
             }
           }
 
-        } catch(e) {
-          note = snippet.replace(/&amp;/g,'&').replace(/&#39;/g,"'") || 'Email received.';
+        } catch (e) {
+          note = note || snippet.replace(/&amp;/g, '&').replace(/&#39;/g, "'") || 'Email received.';
           if (!fields.length) fields = [{ label: 'From', value: firstName(h.from) }];
         }
 
         return {
-          tid: msg.threadId, mid: msg.id, cat: msg.cat,
-          subj, type,
-          title: cleanTitle(subj),
-          amount, risk, fields, rows, note,
-          from: h.from||'', date: h.date||'', to: h.to||'', cc: h.cc||'',
+          tid: msg.threadId, mid: msg.id, cat: msg.cat, subj, type,
+          title: cleanTitle(subj), amount, risk, fields, rows, note,
+          from: h.from || '', date: h.date || '', to: h.to || '', cc: h.cc || '',
           isUnread, isCc, status, rohanApproved, approvalPill
         };
       };
 
-      // Process pending/fyi in parallel
       const pendingItems = await Promise.all(pending.slice(0, 20).map(processMsg));
 
-      // Done items — no AI, just regex
       const doneItems = done.map(({ msg, h, status, isUnread, isCc }) => ({
         tid: msg.threadId, mid: msg.id, cat: msg.cat,
-        subj: h.subject||'', type: detectType(h.subject||''),
-        title: cleanTitle(h.subject||''),
-        amount: extractAmtFromSubject(h.subject||''),
-        risk:'', fields:[], rows:[], note:'',
-        from: h.from||'', date: h.date||'', to: h.to||'', cc: h.cc||'',
-        isUnread: false, isCc, status:'done', rohanApproved: false, approvalPill:''
+        subj: h.subject || '', type: detectType(h.subject || ''),
+        title: cleanTitle(h.subject || ''),
+        amount: extractAmtFromSubject(h.subject || ''),
+        risk: '', fields: [], rows: [], note: '',
+        from: h.from || '', date: h.date || '', to: h.to || '', cc: h.cc || '',
+        isUnread: false, isCc, status: 'done', rohanApproved: false, approvalPill: ''
       }));
 
       const items = [...pendingItems.filter(Boolean), ...doneItems];
       return res.json({ items, refreshedTokens: oauth2Client.credentials });
 
-    } catch(e) { return res.status(500).json({ error: e.message }); }
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
-  // ── MARK READ ─────────────────────────────────────────────────────────────
   if (action === 'mark-read') {
     try {
-      await gmail.users.threads.modify({ userId:'me', id:req.body.tid, requestBody:{ removeLabelIds:['UNREAD'] } });
-      return res.json({ ok:true, refreshedTokens: oauth2Client.credentials });
-    } catch(e) { return res.status(500).json({ error: e.message }); }
+      await gmail.users.threads.modify({ userId: 'me', id: req.body.tid, requestBody: { removeLabelIds: ['UNREAD'] } });
+      return res.json({ ok: true, refreshedTokens: oauth2Client.credentials });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
-  // ── SEND ──────────────────────────────────────────────────────────────────
   if (action === 'send') {
     const { tid, to, cc, subject, body } = req.body;
     try {
-      const thread = await gmail.users.threads.get({ userId:'me', id:tid, format:'metadata' });
+      const thread = await gmail.users.threads.get({ userId: 'me', id: tid, format: 'metadata' });
       const msgs = thread.data.messages || [];
-      const last = msgs[msgs.length-1];
+      const last = msgs[msgs.length - 1];
       const lh = {};
-      for (const h of (last?.payload?.headers||[])) lh[h.name.toLowerCase()] = h.value;
+      for (const h of (last?.payload?.headers || [])) lh[h.name.toLowerCase()] = h.value;
       const msgId = lh['message-id'] || '';
       const replySubj = subject.startsWith('Re:') ? subject : `Re: ${subject}`;
       const lines = [
@@ -521,11 +508,11 @@ export default async function handler(req, res) {
         `Content-Type: text/plain; charset=utf-8`,
         '', body
       ].filter(l => l !== null);
-      const raw = Buffer.from(lines.join('\r\n')).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-      await gmail.users.messages.send({ userId:'me', requestBody:{ raw, threadId:tid } });
-      await gmail.users.threads.modify({ userId:'me', id:tid, requestBody:{ removeLabelIds:['UNREAD'] } });
-      return res.json({ ok:true, refreshedTokens: oauth2Client.credentials });
-    } catch(e) { return res.status(500).json({ error: e.message }); }
+      const raw = Buffer.from(lines.join('\r\n')).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      await gmail.users.messages.send({ userId: 'me', requestBody: { raw, threadId: tid } });
+      await gmail.users.threads.modify({ userId: 'me', id: tid, requestBody: { removeLabelIds: ['UNREAD'] } });
+      return res.json({ ok: true, refreshedTokens: oauth2Client.credentials });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   return res.status(400).json({ error: 'Unknown action' });
