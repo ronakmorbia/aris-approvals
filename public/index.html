@@ -425,7 +425,7 @@ function renderCards(){
   if(pending.length)html+=renderGrp('Pending — Your Approval Needed','gd-p',pending);
   if(fyi.length)html+=renderGrp('Misc','gd-o',fyi);
   if(done.length)html+=renderGrp('Approved','gd-d',done);
-  if(!html)html=`<div class="empty"><div class="empty-t">All clear</div><div class="empty-s">Nothing here.</div></div>`;
+  if(!html)html=`<div class="empty"><div class="empty-t">No pending approvals!</div><div class="empty-s">You're all caught up.</div></div>`;
   area.innerHTML=html;
 }
 
