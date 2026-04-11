@@ -281,6 +281,27 @@ function smartTitle(type, subj, from, body, rows) {
   return subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*[-:]?\s*)/gi,'').trim().slice(0, 60);
 }
 
+
+// Extract the expense date from subject line (DD-MM-YYYY format)
+// Returns true if the email belongs to the current month
+function isCurrentMonth(subj, emailDate) {
+  const now = new Date();
+  const curMonth = now.getMonth();
+  const curYear = now.getFullYear();
+
+  // Try subject date first (most accurate — e.g. "ASL 03-04-2026")
+  const subjMatch = (subj || '').match(/(\d{2})-(\d{2})-(\d{4})/);
+  if (subjMatch) {
+    const month = parseInt(subjMatch[2]) - 1;
+    const year  = parseInt(subjMatch[3]);
+    return month === curMonth && year === curYear;
+  }
+
+  // Fall back to email date
+  const d = new Date(emailDate);
+  return d.getMonth() === curMonth && d.getFullYear() === curYear;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -351,7 +372,8 @@ export default async function handler(req, res) {
       // All other done items just get metadata (fast path)
       const pending = valid.filter(m => m.status !== 'done');
       const expDone = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') === 'EXP');
-      const done = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') !== 'EXP');
+      const tdDone = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') === 'TD');
+      const done = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') !== 'EXP' && detectType(m.h.subject||'') !== 'TD');
 
       const processMsg = async (meta) => {
         const { msg, h, status, isUnread, isCc, type, snippet } = meta;
@@ -546,7 +568,7 @@ export default async function handler(req, res) {
         };
       };
 
-      const pendingItems = await Promise.all([...pending, ...expDone].slice(0, 25).map(processMsg));
+      const pendingItems = await Promise.all([...pending, ...expDone, ...tdDone].slice(0, 30).map(processMsg));
 
       const doneItems = done.map(({ msg, h, status, isUnread, isCc }) => ({
         tid: msg.threadId, mid: msg.id, cat: msg.cat,

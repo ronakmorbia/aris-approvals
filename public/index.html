@@ -277,11 +277,28 @@ function updateMetrics() {
   let tdDone=0, payDone=0, expDone=0, finDone=0, techDone=0;
   let tdPend=0, payPend=0, expPend=0, finPend=0, techPend=0;
 
+  const now = new Date();
+  const curMonth = now.getMonth();
+  const curYear  = now.getFullYear();
+
+  function itemMonth(item) {
+    // Use date from subject (DD-MM-YYYY) as the expense date
+    const m = (item.subj||'').match(/(\d{2})-(\d{2})-(\d{4})/);
+    if (m) return { month: parseInt(m[2])-1, year: parseInt(m[3]) };
+    // Fall back to email header date
+    const d = new Date(item.date);
+    return isNaN(d) ? null : { month: d.getMonth(), year: d.getFullYear() };
+  }
+
   for (const item of items) {
     const amt = parseAmt(item.amount);
     const isDone = item.status === 'done';
     const isPend = item.status === 'pending';
     if (!isDone && !isPend) continue;
+
+    // Only include current month expenses (use subject date, not approval date)
+    const im = itemMonth(item);
+    if (im && (im.month !== curMonth || im.year !== curYear)) continue;
 
     if (item.type === 'TD') {
       // Use full item.amount (confirmed total from email body)
@@ -320,8 +337,8 @@ function updateMetrics() {
     }
   }
 
-  const totalDone = tdDone + payDone + expDone + finDone + techDone;
-  const totalPend = tdPend + payPend + expPend + finPend + techPend;
+  const totalDone = payDone + expDone + finDone + techDone;  // TD excluded from total
+  const totalPend = payPend + expPend + finPend + techPend;  // TD excluded from total
 
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   const setPill = (id, val) => {
@@ -356,12 +373,12 @@ function renderAll(){
 
   document.getElementById('main').innerHTML=`
     <div class="metrics">
-      <div class="mc"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Payables</div><div class="mv" id="m-payables">—</div><span class="mpill" id="m-payables-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Expenses</div><div class="mv" id="m-expenses">—</div><span class="mpill" id="m-expenses-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Finance Cost</div><div class="mv" id="m-finance">—</div><span class="mpill" id="m-finance-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Technology</div><div class="mv" id="m-tech">—</div><span class="mpill" id="m-tech-p" style="display:none"></span></div>
       <div class="mc"><div class="ml">Total</div><div class="mv" id="m-total">—</div><span class="mpill" id="m-total-p" style="display:none"></span></div>
+      <div class="mc" style="border-left:2px solid #E5E2DB"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" style="display:none"></span></div>
     </div>
     <div class="filters">
       <div class="chip on" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>
