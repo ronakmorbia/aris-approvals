@@ -563,7 +563,14 @@ function renderReportPanel() {
     main.insertBefore(panel, main.firstChild);
   }
 
-  const toTitleCase = s => (s||'').replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+  // Words that should always be ALL CAPS
+  const CAPS_WORDS = new Set(['asl','aris','icici','hdfc','idbi','axis','sbi','ncd','gst','llp','pvt','ltd','bipl','atpl','acmpl','wrpl','aws','api','crm','erp','emi','neft','rtgs','upi','otp','kyc','pan','gst','dpo','rmc','od','ca']);
+
+  const toTitleCase = s => (s||'').replace(/[\w&]+/g, t => {
+    const lower = t.toLowerCase();
+    if (CAPS_WORDS.has(lower)) return t.toUpperCase();
+    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  });
 
   const refineName = (s) => {
     if (!s) return s;
