@@ -647,7 +647,7 @@ function renderReportPanel() {
     }
   } else {
     rows.forEach((r,i) => {
-      tableBody += `<tr><td style="color:#9E9B94;font-size:12px">${i+1}</td><td>${r.vendor}</td><td style="color:#9E9B94;font-size:12px">${r.count}×</td><td>${fmtAmt(r.total)}</td></tr>`;
+      tableBody += `<tr><td style="color:#9E9B94;font-size:12px">${i+1}</td><td>${refineName(r.vendor)}</td><td style="color:#9E9B94;font-size:12px">${r.count}×</td><td>${fmtAmt(r.total)}</td></tr>`;
     });
   }
 
@@ -691,7 +691,7 @@ function exportReport() {
   const { rows, month } = data;
   const titles = { payables:'Payables', expenses:'Expenses', finance:'Finance_Cost' };
   const fmtAmt = n => n>=10000000 ? (n/10000000).toFixed(2)+' Cr' : n>=100000 ? (n/100000).toFixed(2)+' L' : Math.round(n).toLocaleString('en-IN');
-  const lines = ['Name,Count,Total Amount', ...rows.map(r => `"${r.vendor}",${r.count},${fmtAmt(r.total)}`)];
+  const lines = ['Name,Count,Total Amount', ...rows.map(r => `"${refineName(r.vendor)}",${r.count},${fmtAmt(r.total)}`)];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
