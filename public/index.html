@@ -29,8 +29,8 @@ main{max-width:950px;margin:0 auto;padding:1.75rem 2.5rem}
 .mc{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:10px;padding:1rem 1.1rem}
 .ml{font-size:11px;font-weight:500;color:#9E9B94;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
 .mv{font-size:22px;font-weight:500;letter-spacing:-0.5px;color:#18171A;margin-bottom:6px}
-.mpill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FEF0E6;color:#854F0B;border:0.5px solid #EF9F27;font-family:'Inter',sans-serif}
-.mpill::before{content:'';width:5px;height:5px;border-radius:50%;background:#D97706;flex-shrink:0}
+.mpill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#F5F4F0;color:#9E9B94;border:0.5px solid #E5E2DB;font-family:'Inter',sans-serif}
+
 
 /* Filters */
 .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.5rem}
@@ -363,8 +363,19 @@ function updateMetrics() {
   const setPill = (id, val) => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (val) { el.textContent = val; el.style.display = 'inline-flex'; }
-    else { el.style.display = 'none'; }
+    const hasAmount = !!val;
+    el.textContent = val || '₹0';
+    el.style.display = 'inline-flex';
+    // Red if pending amount, grey if zero
+    if (hasAmount) {
+      el.style.background = '#FCEBEB';
+      el.style.color = '#791F1F';
+      el.style.borderColor = '#F09595';
+    } else {
+      el.style.background = '#F5F4F0';
+      el.style.color = '#9E9B94';
+      el.style.borderColor = '#E5E2DB';
+    }
   };
 
   set('m-td',       tdDone   ? fmtAmt(tdDone)   : '₹0');
@@ -392,12 +403,12 @@ function renderAll(){
 
   document.getElementById('main').innerHTML=`
     <div class="metrics">
-      <div class="mc"><div class="ml">Payables</div><div class="mv" id="m-payables">—</div><span class="mpill" id="m-payables-p" style="display:none"></span></div>
-      <div class="mc"><div class="ml">Expenses</div><div class="mv" id="m-expenses">—</div><span class="mpill" id="m-expenses-p" style="display:none"></span></div>
-      <div class="mc"><div class="ml">Finance Cost</div><div class="mv" id="m-finance">—</div><span class="mpill" id="m-finance-p" style="display:none"></span></div>
-      <div class="mc"><div class="ml">Technology</div><div class="mv" id="m-tech">—</div><span class="mpill" id="m-tech-p" style="display:none"></span></div>
-      <div class="mc"><div class="ml">Total</div><div class="mv" id="m-total">—</div><span class="mpill" id="m-total-p" style="display:none"></span></div>
-      <div class="mc" style="border-left:2px solid #E5E2DB"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" style="display:none"></span></div>
+      <div class="mc"><div class="ml">Payables</div><div class="mv" id="m-payables">—</div><span class="mpill" id="m-payables-p" ></span></div>
+      <div class="mc"><div class="ml">Expenses</div><div class="mv" id="m-expenses">—</div><span class="mpill" id="m-expenses-p" ></span></div>
+      <div class="mc"><div class="ml">Finance Cost</div><div class="mv" id="m-finance">—</div><span class="mpill" id="m-finance-p" ></span></div>
+      <div class="mc"><div class="ml">Technology</div><div class="mv" id="m-tech">—</div><span class="mpill" id="m-tech-p" ></span></div>
+      <div class="mc"><div class="ml">Total</div><div class="mv" id="m-total">—</div><span class="mpill" id="m-total-p" ></span></div>
+      <div class="mc" style="border-left:2px solid #E5E2DB"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" ></span></div>
     </div>
     <div class="filters">
       <div class="chip" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>
