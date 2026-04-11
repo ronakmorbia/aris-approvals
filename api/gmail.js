@@ -52,7 +52,14 @@ function detectType(subj) {
 }
 
 function firstName(from) {
-  return (from || '').replace(/<[^>]+>/g, '').replace(/"/g, '').trim().split(/\s+/)[0];
+  const s = (from || '').replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
+  // If it looks like an email address, extract the name part before @
+  if (s.includes('@') && !s.includes(' ')) {
+    const local = s.split('@')[0];
+    // Convert "trupti.gupta" -> "Trupti"
+    return local.split('.')[0].charAt(0).toUpperCase() + local.split('.')[0].slice(1);
+  }
+  return s.split(/\s+/)[0];
 }
 
 function decodeBody(data) {
@@ -73,10 +80,12 @@ function stripQuotes(text) {
   return text;
 }
 
-function categorise(name, purpose) {
+function categorise(name, purpose, emailType) {
   const s = (name + ' ' + purpose).toLowerCase();
   if (/salary|payroll|wages|stipend|staff/i.test(s)) return 'Salary';
   if (/interest|ncd|bank charge|factoring|od |loan repay|finance|processing fee/i.test(s)) return 'Finance Cost';
+  if (emailType === 'VPAY') return 'Payables';
+  if (/vendor|supplier|material|cement|steel|rmc|concrete|aggregate|sand|supply/i.test(s)) return 'Payables';
   return 'Expenses';
 }
 
@@ -114,7 +123,7 @@ function parseExcel(base64Data) {
       const amt = typeof amtRaw === 'number' ? amtRaw : parseFloat(String(amtRaw).replace(/[₹,\s]/g,'')) || 0;
       if (name && amt > 0 && !/total|grand total|sub.?total/i.test(name)) {
         const purpose = purposeCol >= 0 ? String(r[purposeCol] || '').trim() : '';
-        dataRows.push({ name, amount: amt, purpose, category: categorise(name, purpose) });
+        dataRows.push({ name, amount: amt, purpose, category: categorise(name, purpose, type) });
       }
     }
 
@@ -143,7 +152,7 @@ function parseExpenseRows(body) {
       const amt = parseInt(m[2].replace(/,/g, ''));
       const purpose = (m[3] || '').trim();
       if (name && amt > 0 && !/expense\s+head|amount/i.test(name)) {
-        rows.push({ name, amount: fmtAmt(amt), purpose, category: categorise(name, purpose) });
+        rows.push({ name, amount: fmtAmt(amt), purpose, category: categorise(name, purpose, type) });
       }
     }
   }
@@ -265,6 +274,29 @@ export default async function handler(req, res) {
             const thread = await gmail.users.threads.get({ userId:'me', id:msg.threadId, format:'full' });
             const messages = thread.data.messages || [];
 
+            // Check if latest message says "please ignore" — if so, flag it
+            const latestMsg = messages[messages.length - 1];
+            const latestBody = extractPlainText(latestMsg?.payload || {}).toLowerCase();
+            const isCancelled = /please ignore|kindly ignore|disregard/i.test(latestBody);
+
+            if (isCancelled) {
+              // Find the original amount from subject
+              const cancelNote = 'Sandesh has asked to ignore this request. Please disregard.';
+              return {
+                tid: msg.threadId, mid: msg.id, cat: msg.cat,
+                subj, type,
+                title: cleanTitle(subj),
+                amount: extractAmtFromSubject(subj),
+                risk: '', rows: [], note: cancelNote,
+                fields: [
+                  { label: 'Status', value: '⚠️ Cancelled — Please Ignore' },
+                  { label: 'From', value: firstName(h.from) },
+                ],
+                from: h.from||'', date: h.date||'', to: h.to||'', cc: h.cc||'',
+                isUnread, isCc, status, rohanApproved: false, approvalPill: ''
+              };
+            }
+
             // Find Rohan's message in the thread
             const rohanMsg = messages.find(m =>
               (m.payload?.headers||[]).find(hh => hh.name==='From' && hh.value.toLowerCase().includes('rohan'))
@@ -342,19 +374,53 @@ export default async function handler(req, res) {
             const body = extractPlainText(full.data.payload);
             // Extract party name from subject
             const party = subj.replace(/^APP-TD\s*-\s*Deposit\s*-\s*/i,'').replace(/-ASL$/i,'').trim();
-            // Extract amount rows from body — look for date + amount pattern
+            // Extract amount rows from body — dates and amounts may be on separate lines
             const amtRows = [];
             let total = 0;
-            for (const line of body.split('\n')) {
-              const m = line.match(/(\d{2}-\d{2}-\d{4})\s+([\d,]+)/);
-              if (m) {
-                const amt = parseInt(m[2].replace(/,/g,''));
-                total += amt;
-                amtRows.push({ name: m[1], amount: fmtAmt(amt), purpose: 'Trade Deposit', category: 'Payables' });
+            const lines = body.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            for (let i = 0; i < lines.length; i++) {
+              // Look for a date line
+              const dateMatch = lines[i].match(/^(\d{2}-\d{2}-\d{4})$/);
+              if (dateMatch) {
+                // Amount may be on same line or next non-empty line
+                let amtStr = '';
+                const sameLine = lines[i].match(/(\d{2}-\d{2}-\d{4})\s+([\d,]+)/);
+                if (sameLine) {
+                  amtStr = sameLine[2];
+                } else if (i + 1 < lines.length) {
+                  const nextLine = lines[i + 1].trim();
+                  if (/^[\d,]+$/.test(nextLine)) amtStr = nextLine;
+                }
+                if (amtStr) {
+                  const amt = parseInt(amtStr.replace(/,/g,''));
+                  if (amt > 0) {
+                    total += amt;
+                    amtRows.push({ name: dateMatch[1], amount: fmtAmt(amt), purpose: 'Trade Deposit', category: 'Payables' });
+                  }
+                }
+              }
+            }
+            // Also try same-line pattern as fallback
+            if (!amtRows.length) {
+              for (const line of lines) {
+                const m = line.match(/(\d{2}-\d{2}-\d{4})\s+([\d,]+)/);
+                if (m) {
+                  const amt = parseInt(m[2].replace(/,/g,''));
+                  total += amt;
+                  amtRows.push({ name: m[1], amount: fmtAmt(amt), purpose: 'Trade Deposit', category: 'Payables' });
+                }
               }
             }
             if (total > 0) amount = fmtAmt(total);
             rows = amtRows;
+            // Party name from subject
+            const party = subj.replace(/^APP-TD\s*[-–]?\s*(?:\d+\.?\d*\s*Cr?\s*)?(?:Deposit\s*[-–]?\s*)?/i,'').replace(/\s*[-–]\s*(ASL|BIPL)\s*$/i,'').replace(/-ASL$/i,'').trim();
+            fields = [
+              { label: 'Party', value: party || 'See email' },
+              { label: 'Company', value: 'Arisinfra Solutions Limited' },
+              { label: 'Account', value: body.includes('HDFC') ? 'HDFC Account-9899' : body.includes('Axis') ? 'BIPL-Axis Bank' : 'See email' },
+              { label: 'Total', value: amount },
+            ];
             fields = [
               { label: 'Party', value: party },
               { label: 'Company', value: 'Arisinfra Solutions Limited' },
