@@ -133,23 +133,46 @@ function parseExcel(base64Data, emailType) {
 function parseExpenseRows(body) {
   const rows = [];
   const lines = body.split('\n');
-  let inTable = false;
+  let section = null; // 'interest' or 'top5'
+
   for (const line of lines) {
     const l = line.trim();
-    if (/top\s+5\s+expenses/i.test(l)) { inTable = true; continue; }
-    if (!inTable) continue;
-    if (/breakdown:|best,|regards/i.test(l)) break;
-    const m = l.match(/^(.+?)\s{2,}([\d,]+)\s*(.*)?$/);
+
+    // Detect section headers
+    if (/interest\s+expenses/i.test(l)) { section = 'interest'; continue; }
+    if (/top\s+5\s+expenses/i.test(l)) { section = 'top5'; continue; }
+
+    // Stop parsing after "Best," or signature
+    if (/^best,|^regards|^thanks/i.test(l)) break;
+
+    // Skip header rows
+    if (!section) continue;
+    if (/expense\s+head|amount\s*\(rs/i.test(l)) continue;
+
+    // Parse data rows — format: "Name   amount   purpose"
+    const m = l.match(/^(.+?)\s{2,}(\d[\d,]+)\s*(.*)?$/);
     if (m) {
       const name = m[1].trim();
       const amt = parseInt(m[2].replace(/,/g, ''));
       const purpose = (m[3] || '').trim();
-      if (name && amt > 0 && !/expense\s+head|amount/i.test(name)) {
-        rows.push({ name, amount: fmtAmt(amt), purpose, category: categorise(name, purpose, 'EXP') });
-      }
+      if (!name || amt <= 0) continue;
+
+      // Force Finance Cost for interest section
+      const cat = section === 'interest'
+        ? 'Finance Cost'
+        : categorise(name, purpose, 'EXP');
+
+      rows.push({ name, amount: fmtAmt(amt), purpose, category: cat });
     }
   }
-  return rows.slice(0, 5);
+
+  // Return top 5 by amount across all sections
+  rows.sort((a, b) => {
+    const pa = parseFloat(a.amount.replace(/[₹,LCr\s]/g,'')) || 0;
+    const pb = parseFloat(b.amount.replace(/[₹,LCr\s]/g,'')) || 0;
+    return pb - pa;
+  });
+  return rows.slice(0, 7); // allow up to 7 to show interest + top5
 }
 
 function extractCrmRisk(body) {
@@ -324,8 +347,11 @@ export default async function handler(req, res) {
       }));
 
       const valid = metaList.filter(Boolean);
+      // EXP done items need full thread processing to get Rohan's category breakdown for KPIs
+      // All other done items just get metadata (fast path)
       const pending = valid.filter(m => m.status !== 'done');
-      const done = valid.filter(m => m.status === 'done');
+      const expDone = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') === 'EXP');
+      const done = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') !== 'EXP');
 
       const processMsg = async (meta) => {
         const { msg, h, status, isUnread, isCc, type, snippet } = meta;
@@ -460,6 +486,15 @@ export default async function handler(req, res) {
             const trimmed = stripQuotes(body);
             risk = extractCrmRisk(trimmed);
             fields = extractCrmFields(trimmed);
+            // Extract credit limit as the card amount
+            const clField = fields.find(f => f.label === 'Credit Limit');
+            if (clField) {
+              const clMatch = clField.value.match(/([\d,]+)/);
+              if (clMatch) {
+                const n = parseInt(clMatch[1].replace(/,/g, ''));
+                amount = fmtAmt(n);
+              }
+            }
             note = `Credit approval request from Divya.${risk ? ' Credit team recommends ' + risk + ' Risk.' : ''}`;
 
           } else if (type === 'TRF') {
@@ -511,7 +546,7 @@ export default async function handler(req, res) {
         };
       };
 
-      const pendingItems = await Promise.all(pending.slice(0, 20).map(processMsg));
+      const pendingItems = await Promise.all([...pending, ...expDone].slice(0, 25).map(processMsg));
 
       const doneItems = done.map(({ msg, h, status, isUnread, isCc }) => ({
         tid: msg.threadId, mid: msg.id, cat: msg.cat,
