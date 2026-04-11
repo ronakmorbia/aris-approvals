@@ -138,7 +138,9 @@ textarea:focus{border-color:#9E9B94}
   </div>
   <div class="ha">
     <span class="ts" id="ts"></span>
-    <button class="rpbtn" id="rpbtn" onclick="toggleReport()">Report</button>
+    <button class="rpbtn" id="rpbtn-payables" onclick="toggleReport('payables')">Payables</button>
+    <button class="rpbtn" id="rpbtn-expenses" onclick="toggleReport('expenses')">Expenses</button>
+    <button class="rpbtn" id="rpbtn-finance" onclick="toggleReport('finance')">Finance Cost</button>
     <button class="rbtn" id="rbtn" onclick="loadInbox()">Refresh</button>
   </div>
 </div>
@@ -525,25 +527,33 @@ async function doAction(tid,action){
 
 boot();
 
-// ── REPORT ────────────────────────────────────────────────────────────────────
-let reportVisible = false;
-let reportData = null;
+// ── REPORTS ───────────────────────────────────────────────────────────────────
+let activeReport = null; // 'payables' | 'expenses' | 'finance'
+let reportCache = {};
 
-function toggleReport() {
-  reportVisible = !reportVisible;
-  const btn = document.getElementById('rpbtn');
-  if (btn) btn.classList.toggle('active', reportVisible);
-  if (reportVisible) {
-    renderReportPanel();
-    if (!reportData) loadReport();
-  } else {
+function toggleReport(type) {
+  if (activeReport === type) {
+    // Close
+    activeReport = null;
+    ['payables','expenses','finance'].forEach(t => {
+      const b = document.getElementById('rpbtn-'+t);
+      if (b) b.classList.remove('active');
+    });
     const panel = document.getElementById('report-panel');
     if (panel) panel.remove();
+    return;
   }
+  // Open / switch
+  activeReport = type;
+  ['payables','expenses','finance'].forEach(t => {
+    const b = document.getElementById('rpbtn-'+t);
+    if (b) b.classList.toggle('active', t === type);
+  });
+  renderReportPanel();
+  if (!reportCache[type]) loadReport(type);
 }
 
 function renderReportPanel() {
-  // Insert report panel before cards area or at top of main
   const main = document.getElementById('main');
   if (!main) return;
   let panel = document.getElementById('report-panel');
@@ -552,25 +562,31 @@ function renderReportPanel() {
     panel.id = 'report-panel';
     main.insertBefore(panel, main.firstChild);
   }
-  if (!reportData) {
-    panel.innerHTML = '<div class="rp"><div class="loading">Loading vendor payment report…</div></div>';
+
+  const titles = { payables:'Payables Report', expenses:'Expenses Report', finance:'Finance Cost Report' };
+  const data = reportCache[activeReport];
+
+  if (!data) {
+    panel.innerHTML = `<div class="rp"><div class="loading">Loading ${titles[activeReport]}…</div></div>`;
     return;
   }
-  const { rows, grandTotal, totalEmails, month } = reportData;
+
+  const { rows, grandTotal, totalEmails, month } = data;
   const fmtAmt = n => n>=10000000 ? '₹'+(n/10000000).toFixed(2)+' Cr' : n>=100000 ? '₹'+(n/100000).toFixed(2)+' L' : '₹'+Math.round(n).toLocaleString('en-IN');
+  const nameCol = activeReport === 'payables' ? 'Vendor' : 'Expense Head';
 
   panel.innerHTML = `<div class="rp">
     <div class="rp-hdr">
       <div>
-        <div class="rp-title">Vendor Payments — ${month}</div>
-        <div class="rp-sub">${rows.length} vendors · ${totalEmails} payment batches · ${fmtAmt(grandTotal)} total</div>
+        <div class="rp-title">${titles[activeReport]} — ${month}</div>
+        <div class="rp-sub">${rows.length} ${activeReport==='payables'?'vendors':'items'} · ${totalEmails} batches · ${fmtAmt(grandTotal)} total</div>
       </div>
       <div class="rp-actions">
         <button class="rp-export" onclick="exportReport()">Export CSV</button>
       </div>
     </div>
     <table>
-      <thead><tr><th>#</th><th>Vendor</th><th>Payments</th><th>Total Amount</th></tr></thead>
+      <thead><tr><th>#</th><th>${nameCol}</th><th>Count</th><th>Total Amount</th></tr></thead>
       <tbody>
         ${rows.map((r,i) => `<tr>
           <td style="color:#9E9B94;font-size:12px">${i+1}</td>
@@ -578,40 +594,40 @@ function renderReportPanel() {
           <td style="color:#9E9B94;font-size:12px">${r.count}×</td>
           <td>${fmtAmt(r.total)}</td>
         </tr>`).join('')}
-        <tr class="grand-total">
-          <td colspan="3">Total</td>
-          <td>${fmtAmt(grandTotal)}</td>
-        </tr>
+        <tr class="grand-total"><td colspan="3">Total</td><td>${fmtAmt(grandTotal)}</td></tr>
       </tbody>
     </table>
   </div>`;
 }
 
-async function loadReport() {
+async function loadReport(type) {
   try {
     const r = await fetch('/api/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tokens })
+      body: JSON.stringify({ tokens, type })
     });
-    reportData = await r.json();
-    if (reportData.refreshedTokens) saveTokens(reportData.refreshedTokens);
-    renderReportPanel();
+    const data = await r.json();
+    if (data.refreshedTokens) saveTokens(data.refreshedTokens);
+    reportCache[type] = data;
+    if (activeReport === type) renderReportPanel();
   } catch(e) {
     const panel = document.getElementById('report-panel');
-    if (panel) panel.innerHTML = `<div class="rp"><div class="loading">Error loading report: ${e.message}</div></div>`;
+    if (panel) panel.innerHTML = `<div class="rp"><div class="loading">Error: ${e.message}</div></div>`;
   }
 }
 
 function exportReport() {
-  if (!reportData) return;
-  const { rows, month } = reportData;
+  const data = reportCache[activeReport];
+  if (!data) return;
+  const { rows, month } = data;
+  const titles = { payables:'Payables', expenses:'Expenses', finance:'Finance_Cost' };
   const fmtAmt = n => n>=10000000 ? (n/10000000).toFixed(2)+' Cr' : n>=100000 ? (n/100000).toFixed(2)+' L' : Math.round(n).toLocaleString('en-IN');
-  const lines = ['Vendor,Payments,Total Amount', ...rows.map(r => `"${r.vendor}",${r.count},${fmtAmt(r.total)}`)];
+  const lines = ['Name,Count,Total Amount', ...rows.map(r => `"${r.vendor}",${r.count},${fmtAmt(r.total)}`)];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `Vendor_Payments_${month.replace(' ','_')}.csv`;
+  a.download = `${titles[activeReport]}_${month.replace(' ','_')}.csv`;
   a.click();
 }
 
