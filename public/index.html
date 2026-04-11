@@ -164,7 +164,7 @@ const ICONS = {
   GEN:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h6M5 11h4"/></svg>`
 };
 
-let items = [], filter = 'all', openTid = null;
+let items = [], filter = 'pending', openTid = null;
 const actionStatus = {};
 let tokens = null;
 
@@ -400,8 +400,8 @@ function renderAll(){
       <div class="mc" style="border-left:2px solid #E5E2DB"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" style="display:none"></span></div>
     </div>
     <div class="filters">
-      <div class="chip on" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>
-      <div class="chip" data-f="pending" onclick="setFilter('pending')">Pending <span style="font-size:10px;opacity:.6">${pending}</span></div>
+      <div class="chip" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>
+      <div class="chip on" data-f="pending" onclick="setFilter('pending')">Pending <span style="font-size:10px;opacity:.6">${pending}</span></div>
       <div class="chip" data-f="approved" onclick="setFilter('approved')">Approved <span style="font-size:10px;opacity:.6">${approved}</span></div>
       <div class="chip" data-f="misc" onclick="setFilter('misc')">Misc <span style="font-size:10px;opacity:.6">${misc}</span></div>
       <div class="chip" data-f="Funds" onclick="setFilter('Funds')">Funds <span style="font-size:10px;opacity:.6">${funds}</span></div>
