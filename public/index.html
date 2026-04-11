@@ -17,6 +17,7 @@ header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;position:sticky;top:
 .ha{display:flex;align-items:center;gap:12px}
 .ts{font-size:11px;color:#9E9B94;font-family:'Inter',sans-serif}
 .rbtn{padding:9px 22px;background:#FFC107;color:#18171A;border:none;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:opacity .15s}.rbtn:hover{opacity:.85}
+.rpbtn{padding:9px 22px;background:transparent;color:#18171A;border:0.5px solid #C8C5BC;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all .15s}.rpbtn:hover{background:#F5F4F0}.rpbtn.active{background:#18171A;color:#FFFFFF;border-color:#18171A}
 .rbtn:hover{opacity:.85}.rbtn:disabled{opacity:.5;pointer-events:none}
 
 /* Main centred layout */
@@ -97,6 +98,20 @@ textarea:focus{border-color:#9E9B94}
 .br:hover{background:#A32D2D;color:white}
 .bo{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;border:0.5px solid #C8C5BC;background:#F5F4F0;color:#5C5A55;cursor:pointer;font-family:'Inter',sans-serif}
 .bo:hover{background:#E5E2DB}
+.rp{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:14px;padding:24px;margin-bottom:1.5rem}
+.rp-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.rp-title{font-size:14px;font-weight:600;color:#18171A}
+.rp-sub{font-size:12px;color:#9E9B94}
+.rp-actions{display:flex;gap:8px}
+.rp-export{padding:6px 14px;background:#F5F4F0;color:#18171A;border:0.5px solid #C8C5BC;border-radius:999px;font-size:12px;font-weight:400;cursor:pointer;font-family:'Inter',sans-serif}
+.rp-export:hover{background:#E5E2DB}
+.rp table{width:100%;border-collapse:collapse;font-size:13px}
+.rp th{font-size:11px;font-weight:500;color:#9E9B94;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;text-align:left;border-bottom:0.5px solid #E5E2DB}
+.rp th:last-child{text-align:right}
+.rp td{padding:9px 10px;border-bottom:0.5px solid #F5F4F0;color:#18171A}
+.rp td:last-child{text-align:right;font-weight:500}
+.rp tr:last-child td{border-bottom:none}
+.rp .grand-total td{font-weight:600;border-top:0.5px solid #C8C5BC;padding-top:10px}
 .loading{text-align:center;padding:3rem;color:#9E9B94;font-size:13px}
 .error-bar{background:#FCEBEB;color:#791F1F;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:1rem}
 .empty{text-align:center;padding:3rem;background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:12px}
@@ -508,6 +523,96 @@ async function doAction(tid,action){
 }
 
 boot();
+
+// ── REPORT ────────────────────────────────────────────────────────────────────
+let reportVisible = false;
+let reportData = null;
+
+function toggleReport() {
+  reportVisible = !reportVisible;
+  const btn = document.getElementById('rpbtn');
+  if (btn) btn.classList.toggle('active', reportVisible);
+  if (reportVisible) {
+    renderReportPanel();
+    if (!reportData) loadReport();
+  } else {
+    const panel = document.getElementById('report-panel');
+    if (panel) panel.remove();
+  }
+}
+
+function renderReportPanel() {
+  // Insert report panel before cards area or at top of main
+  const main = document.getElementById('main');
+  if (!main) return;
+  let panel = document.getElementById('report-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'report-panel';
+    main.insertBefore(panel, main.firstChild);
+  }
+  if (!reportData) {
+    panel.innerHTML = '<div class="rp"><div class="loading">Loading vendor payment report…</div></div>';
+    return;
+  }
+  const { rows, grandTotal, totalEmails, month } = reportData;
+  const fmtAmt = n => n>=10000000 ? '₹'+(n/10000000).toFixed(2)+' Cr' : n>=100000 ? '₹'+(n/100000).toFixed(2)+' L' : '₹'+Math.round(n).toLocaleString('en-IN');
+
+  panel.innerHTML = `<div class="rp">
+    <div class="rp-hdr">
+      <div>
+        <div class="rp-title">Vendor Payments — ${month}</div>
+        <div class="rp-sub">${rows.length} vendors · ${totalEmails} payment batches · ${fmtAmt(grandTotal)} total</div>
+      </div>
+      <div class="rp-actions">
+        <button class="rp-export" onclick="exportReport()">Export CSV</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Vendor</th><th>Payments</th><th>Total Amount</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => `<tr>
+          <td style="color:#9E9B94;font-size:12px">${i+1}</td>
+          <td>${r.vendor}</td>
+          <td style="color:#9E9B94;font-size:12px">${r.count}×</td>
+          <td>${fmtAmt(r.total)}</td>
+        </tr>`).join('')}
+        <tr class="grand-total">
+          <td colspan="3">Total</td>
+          <td>${fmtAmt(grandTotal)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+async function loadReport() {
+  try {
+    const r = await fetch('/api/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens })
+    });
+    reportData = await r.json();
+    if (reportData.refreshedTokens) saveTokens(reportData.refreshedTokens);
+    renderReportPanel();
+  } catch(e) {
+    const panel = document.getElementById('report-panel');
+    if (panel) panel.innerHTML = `<div class="rp"><div class="loading">Error loading report: ${e.message}</div></div>`;
+  }
+}
+
+function exportReport() {
+  if (!reportData) return;
+  const { rows, month } = reportData;
+  const fmtAmt = n => n>=10000000 ? (n/10000000).toFixed(2)+' Cr' : n>=100000 ? (n/100000).toFixed(2)+' L' : Math.round(n).toLocaleString('en-IN');
+  const lines = ['Vendor,Payments,Total Amount', ...rows.map(r => `"${r.vendor}",${r.count},${fmtAmt(r.total)}`)];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Vendor_Payments_${month.replace(' ','_')}.csv`;
+  a.click();
+}
 
 // Auto-poll every 90 seconds
 const POLL_INTERVAL=90*1000;let pollTimer=null,isPolling=false;

@@ -4,8 +4,7 @@
     { "source": "/(.*)", "destination": "/public/index.html" }
   ],
   "functions": {
-    "api/gmail.js": {
-      "maxDuration": 60
-    }
+    "api/gmail.js": { "maxDuration": 60 },
+    "api/report.js": { "maxDuration": 60 }
   }
 }
