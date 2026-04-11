@@ -194,6 +194,35 @@ async function loadInbox(){
 }
 
 function detectType(s){s=(s||'').toUpperCase();if(s.includes('APP-VPAY'))return'VPAY';if(s.includes('APP-TD'))return'TD';if(s.includes('APP-TRF'))return'TRF';if(s.includes('APP-EXP'))return'EXP';if(s.includes('APP-FD'))return'FD';if(s.includes('CRM'))return'CRM';if(s.includes('HR')||s.includes('APP-HR'))return'HR';return'GEN';}
+
+function cleanTitle(s) {
+  // Strip common prefixes from subject lines
+  return (s||'')
+    .replace(/^(Re:|RE:|Fwd:|FWD:)\s*/gi, '')
+    .replace(/^APP-[A-Z]+-?\s*/gi, '')
+    .replace(/^CRM-APP:\s*/gi, '')
+    .replace(/^HR-APP:\s*/gi, '')
+    .replace(/Rs\.?\s*[\d,]+\s*\/-?\s*/gi, '')
+    .replace(/\s*-?\s*ASL\s*\d{2}-\d{2}-\d{4}\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractAmtFromSubject(s) {
+  s = s || '';
+  const cr = s.match(/(\d+\.?\d*)\s*Cr/i);
+  if (cr) return '₹' + cr[1] + ' Cr';
+  const rs = s.match(/Rs\.?\s*([\d,]+)/i);
+  if (rs) {
+    const num = parseInt(rs[1].replace(/,/g, ''));
+    if (num >= 10000000) return '₹' + (num/10000000).toFixed(2) + ' Cr';
+    if (num >= 100000) return '₹' + (num/100000).toFixed(2) + ' L';
+    return '₹' + rs[1];
+  }
+  const l = s.match(/(\d+\.?\d*)\s*L(acs?|akhs?)?/i);
+  if (l) return '₹' + l[1] + ' L';
+  return '';
+}
 function extractAmt(s){const cr=(s||'').match(/(\d+\.?\d*)\s*Cr/i);if(cr)return'₹'+cr[1]+' Cr';const rs=(s||'').match(/Rs\.?\s*([\d,]+)/i);if(rs)return'₹'+rs[1];const l=(s||'').match(/(\d+\.?\d*)\s*Lacs?/i);if(l)return'₹'+l[1]+' L';return'';}
 function cleanFrom(f){return(f||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];}
 function formatDate(d){if(!d)return'';try{return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});}catch(e){return d;}}
@@ -213,7 +242,22 @@ function setFilter(f){
   renderCards();
 }
 
+function updateMetrics() {
+  const pending = items.filter(i=>i.status==='pending');
+  const done = items.filter(i=>i.status==='done');
+  const fyi = items.filter(i=>i.status==='fyi');
+  document.getElementById('m-pending').textContent = pending.length;
+  document.getElementById('m-pending-count').textContent = pending.length + ' item' + (pending.length===1?'':'s');
+  document.getElementById('m-approved').textContent = done.length;
+  document.getElementById('m-approved-count').textContent = done.length + ' item' + (done.length===1?'':'s');
+  document.getElementById('m-misc').textContent = fyi.length;
+  document.getElementById('m-misc-count').textContent = fyi.length + ' item' + (fyi.length===1?'':'s');
+  document.getElementById('m-total').textContent = items.length;
+  document.getElementById('m-total-count').textContent = items.length + ' emails';
+}
+
 function renderAll(){
+  updateMetrics();
   const pending=items.filter(i=>i.status==='pending').length;
   const misc=items.filter(i=>i.status==='fyi').length;
   const approved=items.filter(i=>i.status==='done').length;
@@ -224,10 +268,10 @@ function renderAll(){
 
   document.getElementById('main').innerHTML=`
     <div class="metrics">
-      <div class="mc"><div class="ml">Payables</div><div class="mv">₹14.2 Cr</div><span class="mpill">₹1.15 Cr</span></div>
-      <div class="mc"><div class="ml">Expenses</div><div class="mv">₹48.6 L</div><span class="mpill">₹9.03 L</span></div>
-      <div class="mc"><div class="ml">Finance Cost</div><div class="mv">₹32.1 L</div><span class="mpill">₹6.92 L</span></div>
-      <div class="mc"><div class="ml">Total</div><div class="mv">₹15.7 Cr</div><span class="mpill">₹2.40 Cr</span></div>
+      <div class="mc"><div class="ml">Pending</div><div class="mv" id="m-pending">—</div><span class="mpill" id="m-pending-count">0 items</span></div>
+      <div class="mc"><div class="ml">Approved</div><div class="mv" id="m-approved">—</div><span class="mpill" id="m-approved-count" style="background:#EAF3DE;color:#27500A;border-color:#97C459">0 items</span></div>
+      <div class="mc"><div class="ml">Misc</div><div class="mv" id="m-misc">—</div><span class="mpill" id="m-misc-count" style="background:#F5F4F0;color:#5C5A55;border-color:#C8C5BC">0 items</span></div>
+      <div class="mc"><div class="ml">Total Inbox</div><div class="mv" id="m-total">—</div><span class="mpill" id="m-total-count">0 emails</span></div>
     </div>
     <div class="filters">
       <div class="chip on" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>
@@ -264,6 +308,10 @@ function renderGrp(title,dotCls,list){
 
 function renderCard(item){
   const open=openTid===item.tid;
+  // Use AI title if available, else clean the subject line
+  const displayTitle = item.title && item.title !== item.subj ? item.title : cleanTitle(item.subj);
+  // Use AI amount if available, else extract from subject
+  const displayAmount = item.amount || extractAmtFromSubject(item.subj);
   const ast=actionStatus[item.tid]||{};
   const fromName=(item.from||'').replace(/<[^>]+>/g,'').replace(/"/g,'').trim().split(/\s+/)[0];
   const namePill=fromName?`<span class="mpill2">${fromName}</span>`:'';
@@ -304,7 +352,7 @@ function renderCard(item){
     <div class="ch">
       <div class="cicon ic-${item.type}">${ICONS[item.type]||ICONS.GEN}</div>
       <div class="cmain">
-        <div class="ctitle">${item.title||item.subj.replace(/^(Re:|RE:|APP-[A-Z]+-?\s*)/gi,'').trim()}</div>
+        <div class="ctitle">${displayTitle}</div>
         <div class="cmeta">
           <span class="mdate">${item.date}</span><span class="mdot">·</span>
           ${namePill}
@@ -313,7 +361,7 @@ function renderCard(item){
           ${badge?`<span class="mdot">·</span>${badge}`:''}
         </div>
       </div>
-      <span class="camount">${item.amount||''}</span>
+      <span class="camount">${displayAmount}</span>
     </div>
     <div class="panel${open?' show':''}">
       ${panelContent}
