@@ -284,11 +284,9 @@ function updateMetrics() {
     if (!isDone && !isPend) continue;
 
     if (item.type === 'TD') {
-      // Sum all amounts from rows (each tranche), or fall back to item.amount
-      const rows = item.rows || [];
-      const total = rows.length ? rows.reduce((s,r) => s + parseAmt(r.amount), 0) : amt;
-      if (isDone) tdDone += total;
-      if (isPend) tdPend += total;
+      // Use full item.amount (confirmed total from email body)
+      if (isDone) tdDone += amt;
+      if (isPend) tdPend += amt;
 
     } else if (item.type === 'VPAY') {
       if (isDone) payDone += amt;
@@ -296,16 +294,25 @@ function updateMetrics() {
 
     } else if (item.type === 'EXP') {
       const rows = item.rows || [];
-      if (rows.length) {
+      if (rows.length && amt > 0) {
+        // Use rows to get category split, then scale to full amount
+        let rFin=0, rTech=0, rExp=0;
         for (const r of rows) {
           const ra = parseAmt(r.amount);
-          if (r.category === 'Finance Cost') {
-            if (isDone) finDone += ra; if (isPend) finPend += ra;
-          } else if (r.category === 'Technology') {
-            if (isDone) techDone += ra; if (isPend) techPend += ra;
-          } else {
-            if (isDone) expDone += ra; if (isPend) expPend += ra;
-          }
+          if (r.category === 'Finance Cost') rFin += ra;
+          else if (r.category === 'Technology') rTech += ra;
+          else rExp += ra;
+        }
+        const rowTotal = rFin + rTech + rExp;
+        if (rowTotal > 0) {
+          // Scale each category proportionally to the full email total
+          const fin  = Math.round(amt * rFin  / rowTotal);
+          const tech = Math.round(amt * rTech / rowTotal);
+          const exp  = amt - fin - tech;
+          if (isDone) { finDone += fin; techDone += tech; expDone += exp; }
+          if (isPend) { finPend += fin; techPend += tech; expPend += exp; }
+        } else {
+          if (isDone) expDone += amt; if (isPend) expPend += amt;
         }
       } else {
         if (isDone) expDone += amt; if (isPend) expPend += amt;
