@@ -85,7 +85,7 @@ function categorise(name, purpose, emailType) {
   if (/interest|ncd|bank charge|factoring|od |loan repay|finance|processing fee/i.test(s)) return 'Finance Cost';
   if (/software|saas|tech|crm|erp|app|platform|subscription|aws|azure|google cloud|techmagify|sazs|weightment|automation|digital|it |web |api/i.test(s)) return 'Technology';
   if (emailType === 'VPAY') return 'Payables';
-  if (/vendor|supplier|material|cement|steel|rmc|concrete|aggregate|sand|supply/i.test(s)) return 'Payables';
+  // EXP emails never have Payables — always Expenses
   return 'Expenses';
 }
 
