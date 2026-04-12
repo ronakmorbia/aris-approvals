@@ -128,6 +128,7 @@ textarea:focus{border-color:#9E9B94}
 .auth-btn:hover{opacity:.85}
 .auth-note{font-size:11px;color:#9E9B94;margin-top:1rem}
 
+
 .mob-reports-wrap{display:none}
 
 /* ── MOBILE / iPHONE ──────────────────────────────────────────────────────── */
@@ -157,7 +158,6 @@ textarea:focus{border-color:#9E9B94}
   .ha .rpbtn { display: none; }
 
   /* Reports dropdown */
-  .mob-reports-wrap { display: inline-block !important; }
   .mob-reports-wrap { position: relative; display: inline-block; }
   .mob-reports-btn {
     height: 34px; padding: 0 14px; border-radius: 999px;
@@ -216,6 +216,11 @@ textarea:focus{border-color:#9E9B94}
   .rp-hdr { flex-direction: column; gap: 10px; align-items: flex-start; }
 }
 
+
+  /* Hide purpose column in EXP rows on mobile */
+  .exp-purpose { display: none; }
+}
+
 /* Very small phones */
 @media (max-width: 375px) {
   .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -236,6 +241,14 @@ textarea:focus{border-color:#9E9B94}
     <button class="rpbtn" id="rpbtn-payables" onclick="toggleReport('payables')">Payables</button>
     <button class="rpbtn" id="rpbtn-expenses" onclick="toggleReport('expenses')">Expenses</button>
     <button class="rpbtn" id="rpbtn-finance" onclick="toggleReport('finance')">Finance Cost</button>
+    <div class="mob-reports-wrap" id="mob-reports-wrap">
+      <button class="mob-reports-btn" id="mob-reports-btn" onclick="toggleMobReports()">Reports ▾</button>
+      <div class="mob-reports-dropdown" id="mob-reports-dropdown">
+        <button onclick="mobSelectReport('payables')" id="mob-r-payables">Payables</button>
+        <button onclick="mobSelectReport('expenses')" id="mob-r-expenses">Expenses</button>
+        <button onclick="mobSelectReport('finance')" id="mob-r-finance">Finance Cost</button>
+      </div>
+    </div>
     <button class="rbtn" id="rbtn" onclick="loadInbox()">Refresh</button>
   </div>
 </div>
@@ -265,7 +278,19 @@ let tokens = null;
 function saveTokens(t){tokens=t;try{localStorage.setItem('aris_tokens',JSON.stringify(t));}catch(e){}}
 function loadTokens(){try{const t=localStorage.getItem('aris_tokens');return t?JSON.parse(t):null;}catch(e){return null;}}
 
-async function boot(){
+async function applyMobileUI() {
+  const isMobile = window.innerWidth <= 768;
+  const wrap = document.getElementById('mob-reports-wrap');
+  const desktopBtns = ['rpbtn-payables','rpbtn-expenses','rpbtn-finance'];
+  if (wrap) wrap.style.display = isMobile ? 'inline-block' : 'none';
+  desktopBtns.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isMobile ? 'none' : 'inline-flex';
+  });
+}
+window.addEventListener('resize', applyMobileUI);
+
+function boot(){
   const params=new URLSearchParams(window.location.search);
   const tokensParam=params.get('tokens');
   if(tokensParam){try{const t=JSON.parse(decodeURIComponent(tokensParam));saveTokens(t);history.replaceState({},'','/');await loadInbox();return;}catch(e){}}
@@ -565,8 +590,8 @@ function renderCard(item){
     const catColor={'Payables':'#3C3489','Salary':'#27500A','Expenses':'#0C447C','Finance Cost':'#791F1F'};
     const catBg={'Payables':'#EEEDFE','Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FCEBEB'};
     panelContent+=`<table class="tbl">
-      <thead><tr><th>${item.type==='EXP'?'Expense Head':item.type==='VPAY'?'Vendor':'Name'}</th>${item.type==='EXP'?'<th>Purpose</th>':''}<th>Category</th><th>Amount</th></tr></thead>
-      <tbody>${item.rows.map(r=>`<tr><td>${r.name}</td>${item.type==='EXP'?`<td>${r.purpose||'—'}</td>`:''}<td><span style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:${catBg[r.category]||'#F5F4F0'};color:${catColor[r.category]||'#5C5A55'}">${r.category}</span></td><td>${r.amount}</td></tr>`).join('')}
+      <thead><tr><th>${item.type==='EXP'?'Expense Head':item.type==='VPAY'?'Vendor':'Name'}</th>${item.type==='EXP'?'<th class="exp-purpose">Purpose</th>':''}<th>Category</th><th>Amount</th></tr></thead>
+      <tbody>${item.rows.map(r=>`<tr><td>${r.name}</td>${item.type==='EXP'?`<td class="exp-purpose">${r.purpose||'—'}</td>`:''}<td><span style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:${catBg[r.category]||'#F5F4F0'};color:${catColor[r.category]||'#5C5A55'}">${r.category}</span></td><td>${r.amount}</td></tr>`).join('')}
       ${item.amount?`<tr class="tbl-tot"><td colspan="${item.type==='EXP'?3:2}">Total</td><td>${item.amount}</td></tr>`:''}</tbody></table>`;
   }
   if(item.note)panelContent+=`<div class="note">${item.note}</div>`;
@@ -657,6 +682,7 @@ function mobSelectReport(type) {
 }
 
 boot();
+applyMobileUI();
 
 // ── REPORTS ───────────────────────────────────────────────────────────────────
 let activeReport = null; // 'payables' | 'expenses' | 'finance'
@@ -706,9 +732,43 @@ function renderReportPanel() {
   const refineName = (s) => {
     if (!s) return s;
     const t = s.trim();
+    const key = t.toLowerCase().replace(/\s*[-–]+\s*$/, '').trim();
 
-    // Specific known fixes — checked against real email data
+    // ── Exact matches ────────────────────────────────────────────────────────
     const exact = {
+      // Company abbreviations
+      'arisinfra solutions limited': 'ARIS',
+      'arisinfra solutions private limited': 'ARIS',
+      'arisinfra solutions': 'ARIS',
+      'arisinfra': 'ARIS',
+      'buildmex infra private limited': 'BM',
+      'buildmex infra': 'BM',
+      'buildmex': 'BM',
+      'bipl': 'BM',
+      'natureresidences real estate development private limited': 'NRDPL',
+      'natureresidences real estate development': 'NRDPL',
+      'natureresidences realtors private limited': 'NRPL',
+      'natureresidences realtors': 'NRPL',
+      'arisinfra constructions maharashtra private limited': 'ACMPL',
+      'arisinfra constructions': 'ACMPL',
+      'acmpl': 'ACMPL',
+      'whiteroots infra private limited': 'WR',
+      'whiteroots infra': 'WR',
+      'whiteroots': 'WR',
+      'wrpl': 'WR',
+      'chennai mines private limited': 'CMPL',
+      'shri chennai mines': 'CM',
+      'chennai mines': 'CM',
+      'ps blue metals': 'PS Blue',
+      'p.s. blue metals': 'PS Blue',
+      'apar infra solutions private limited': 'Apar Infra',
+      'apar infra solutions': 'Apar Infra',
+      'netwin roadways': 'Netwin Roadways',
+      'sarvadnya enterprises': 'Sarvadnya',
+      'satyam ventures projects private limited': 'Satyam Ventures',
+      'gvee infra pvt ltd': 'GVEE Infra',
+      'gvee infra': 'GVEE Infra',
+      // Tech tools
       'google clouds': 'Google Cloud',
       'google cloud': 'Google Cloud',
       'atlasian': 'Atlassian',
@@ -735,10 +795,11 @@ function renderReportPanel() {
       'relic': 'Relic',
       'texterity': 'Texterity',
       'sunx': 'Sun-X',
+      'sun-x concrete india private limited': 'Sun-X',
       'manish bohra': 'Manish Bohra',
       'corpcomm studio - annual report design': 'Corpcomm Studio',
       'corpcomm studio': 'Corpcomm Studio',
-      'admin - rent, utility & vendor payments': 'Admin, Rent & Vendor Payments',
+      'admin - rent, utility & vendor payments': 'Admin & Vendor Payments',
       'rubix (tata insurance) -': 'Rubix (Tata Insurance)',
       'rubix (tata insurance)': 'Rubix (Tata Insurance)',
       's&t legal -': 'S&T Legal',
@@ -746,18 +807,23 @@ function renderReportPanel() {
       'arbitration': 'Arbitration Fees',
     };
 
-    const key = t.toLowerCase().replace(/\s*-\s*$/, '').trim();
     if (exact[key]) return exact[key];
 
-    // Corp CC - BANK → Bank Corporate Card
-    const corpCC = key.match(/^corp cc\s*-\s*(.+)$/i);
+    // ── Corp CC - BANK → Bank Corporate Card ────────────────────────────────
+    const corpCC = key.match(/^corp cc\s*[-–]\s*(.+)$/i);
     if (corpCC) return toTitleCase(corpCC[1].trim()) + ' Corporate Card';
 
-    // Remove trailing dash
-    const cleaned = t.replace(/\s*[-–]+\s*$/, '').trim();
+    // ── Strip legal suffixes — keep first meaningful part ────────────────────
+    const legalSuffixes = /\s+(private limited|pvt\.?\s*ltd\.?|limited|llp|solutions private limited|infra private limited|projects private limited|ventures private limited|enterprises private limited|constructions private limited|realtors private limited|real estate development private limited)$/i;
+    const stripped = t.replace(/\s*[-–]+\s*$/, '').trim();
+    const withoutSuffix = stripped.replace(legalSuffixes, '').trim();
 
-    // Title case as fallback
-    return toTitleCase(cleaned);
+    // If stripping made it shorter, use the stripped version
+    if (withoutSuffix.length < stripped.length && withoutSuffix.length > 2) {
+      return toTitleCase(withoutSuffix);
+    }
+
+    return toTitleCase(stripped);
   };
   const titles = { payables:'Payables Report', expenses:'Expenses Report', finance:'Finance Cost Report' };
   const data = reportCache[activeReport];
