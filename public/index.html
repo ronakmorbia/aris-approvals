@@ -450,13 +450,13 @@ SUMMARY: [your summary]
 FLAG: [one sentence if needed, else leave blank]`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ prompt })
     });
     const data = await res.json();
-    const raw = data.content?.[0]?.text || '';
+    const raw = data.text || '';
     const summaryMatch = raw.match(/SUMMARY:\s*(.+)/i);
     const flagMatch = raw.match(/FLAG:\s*(.+)/i);
     exp.aiSummary = summaryMatch ? summaryMatch[1].trim() : raw.trim();
