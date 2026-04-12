@@ -729,14 +729,16 @@ export default async function handler(req, res) {
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
-  // ── ROHAN INBOX — EXP emails where Rohan is To/CC ─────────────────────────
+  // ── ROHAN INBOX ─────────────────────────────────────────────────────────────
+  // Original email = what department sent TO Rohan (Ronak in CC).
+  // approved = Rohan has replied on the thread = his approval forwarded to Ronak.
+  // pending  = no reply from Rohan yet.
   if (action === 'rohan-inbox') {
     try {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const afterDate = `${monthStart.getFullYear()}/${String(monthStart.getMonth()+1).padStart(2,'0')}/01`;
 
-      // Fetch APP-EXP emails in Funds label this month
       const listRes = await gmail.users.messages.list({
         userId: 'me',
         q: `label:Funds APP-EXP after:${afterDate}`,
@@ -744,69 +746,83 @@ export default async function handler(req, res) {
       });
       const messages = listRes.data.messages || [];
 
-      const items = await Promise.all(messages.map(async (msg) => {
+      // One item per thread
+      const seenThreads = new Set();
+      const threads = messages.filter(m => {
+        if (seenThreads.has(m.threadId)) return false;
+        seenThreads.add(m.threadId);
+        return true;
+      });
+
+      const items = await Promise.all(threads.map(async (msg) => {
         try {
-          const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+          const thread = await gmail.users.threads.get({ userId: 'me', id: msg.threadId, format: 'full' });
+          const threadMsgs = thread.data.messages || [];
+
+          // Original = first message in thread (department → Rohan)
+          const original = threadMsgs[0];
+          if (!original) return null;
+
           const hdrs = {};
-          for (const h of (full.data.payload?.headers || [])) hdrs[h.name.toLowerCase()] = h.value;
+          for (const h of (original.payload?.headers || [])) hdrs[h.name.toLowerCase()] = h.value;
 
           const subj = hdrs['subject'] || '';
           const from = hdrs['from'] || '';
-          const to = hdrs['to'] || '';
-          const cc = hdrs['cc'] || '';
+          const to   = hdrs['to']   || '';
+          const cc   = hdrs['cc']   || '';
           const date = hdrs['date'] || '';
 
-          // Only include emails TO or CC rohan
-          const allRecipients = (to + ' ' + cc).toLowerCase();
-          if (!allRecipients.includes('rohan')) return null;
+          // Only threads where Rohan is in To or CC of the original email
+          if (!(to + ' ' + cc).toLowerCase().includes('rohan')) return null;
 
-          // Extract body
-          const body = extractPlainText(full.data.payload);
-          const trimmedBody = stripQuotes(body);
+          // Body = original email (what department sent to Rohan)
+          const body = stripQuotes(extractPlainText(original.payload));
 
-          // Extract amount from subject
-          const amtMatch = subj.match(/Rs\.?\s*([\d,]+)/i);
+          // Amount from subject, fallback to body
           let amount = '';
-          if (amtMatch) {
-            const n = parseInt(amtMatch[1].replace(/,/g,''));
-            amount = fmtAmt(n);
-          }
-
-          // Extract total from body if not in subject
+          const amtSubj = subj.match(/Rs\.?\s*([\d,]+)/i);
+          if (amtSubj) amount = fmtAmt(parseInt(amtSubj[1].replace(/,/g, '')));
           if (!amount) {
-            const bodyAmt = trimmedBody.match(/Total Amount\s*[:\s]+([\d,]+)/i) || trimmedBody.match(/Rs\.?\s*([\d,]+)\s*\/[-]?/i);
-            if (bodyAmt) amount = fmtAmt(parseInt(bodyAmt[1].replace(/,/g,'')));
+            const amtBody = body.match(/Total Amount\s*[:\s]+([\d,]+)/i)
+                         || body.match(/Rs\.?\s*([\d,]+)\s*\/[-]?/i);
+            if (amtBody) amount = fmtAmt(parseInt(amtBody[1].replace(/,/g, '')));
           }
 
-          // Detect department
+          // Department
           const dept = (() => {
             const s = (subj + ' ' + from).toLowerCase();
-            if (/\bhr\b|human resource/i.test(s)) return 'HR';
-            if (/\bcrm\b|customer/i.test(s)) return 'CRM';
+            if (/salary|payroll|wages|\bhr\b|human resource/i.test(s)) return 'HR';
+            if (/\bcrm\b|customer relation/i.test(s)) return 'CRM';
             if (/\btax\b/i.test(s)) return 'Tax';
             if (/\badmin\b/i.test(s)) return 'Admin';
+            if (/tech|software|saas|cloud|aws|figma|cursor/i.test(s)) return 'Tech';
             if (/\bops\b|operation/i.test(s)) return 'Operations';
             return 'Funds';
           })();
 
-          // Check if Rohan already replied (submitted)
-          const thread = await gmail.users.threads.get({ userId: 'me', id: msg.threadId, format: 'full' });
-          const alreadySubmitted = (thread.data.messages || []).some(m => {
+          // approved = Rohan has replied on this thread after the original email
+          const rohanReply = threadMsgs.slice(1).find(m => {
             const mFrom = (m.payload?.headers || []).find(h => h.name === 'From')?.value || '';
-            const mBody = extractPlainText(m.payload);
-            return mFrom.toLowerCase().includes('rohan') && mBody.includes('ROHAN-APPROVED');
+            return mFrom.toLowerCase().includes('rohan');
           });
+          const approved = !!rohanReply;
+
+          // Capture Rohan's reply as his approval note
+          const rohanNote = rohanReply
+            ? stripQuotes(extractPlainText(rohanReply.payload)).slice(0, 300)
+            : '';
 
           return {
-            mid: msg.id,
+            mid: original.id,
             tid: msg.threadId,
             subj,
-            from: firstName(from) + ' <' + (from.match(/<([^>]+)>/)?.[1] || from) + '>',
+            from: firstName(from),
             date: new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
             amount,
             dept,
-            body: trimmedBody.slice(0, 1200),
-            submitted: alreadySubmitted
+            body: body.slice(0, 1500),  // full original email for AI to read
+            approved,                    // true = Rohan approved, false = pending
+            rohanNote                    // Rohan's reply if already approved
           };
         } catch(e) { return null; }
       }));
