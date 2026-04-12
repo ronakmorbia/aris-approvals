@@ -594,11 +594,52 @@ export default async function handler(req, res) {
 
           } else if (type === 'HR') {
             const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
-            const body = stripQuotes(extractPlainText(full.data.payload)).slice(0, 500);
-            // Extract the actual request from HR email
-            const hrLines = body.split('\n').filter(l => l.trim() && !l.startsWith('>') && !/^thanks|^regards|^dear/i.test(l.trim()));
-            note = hrLines.slice(0, 2).join(' ').replace(/\s+/g, ' ').trim().slice(0, 180);
-            fields = [{ label: 'From', value: firstName(h.from) }];
+            const body = stripQuotes(extractPlainText(full.data.payload));
+
+            // Extract amount
+            const amtMatch = body.match(/total payable amount.*?Rs\.?\s*\*?([\d,]+)\*?/i)
+              || body.match(/Rs\.?\s*\*?([\d,]+)\*?\s*\/\-/i);
+            if (amtMatch) amount = fmtAmt(parseInt(amtMatch[1].replace(/,/g,'')));
+
+            // Build smart note — skip salutation lines, take the actual request
+            const hrLines = body.split('\n')
+              .filter(l => {
+                const t = l.trim();
+                return t.length > 10
+                  && !t.startsWith('>')
+                  && !/^(hi |dear |regards|thanks|--)/i.test(t)
+                  && !/^(Arisinfra|Art Guild|L\.B\.S|Mumbai|Web:|Mob:|Unit)/i.test(t);
+              });
+
+            // Find the key request line
+            const requestLine = hrLines.find(l => /please|approval|process|payable|kindly/i.test(l));
+            const totalLine = hrLines.find(l => /total payable|payable amount/i.test(l));
+
+            // Build category breakdown from body
+            const catRows = [];
+            const catRegex = /^(Fuel|Food|Local Conveyance|Driver|Repairs|Printing|Courier|Work Support|Flight|Accommodation|Mobile|Fastag).*?(\d[\d,]+)/gm;
+            let cm;
+            while ((cm = catRegex.exec(body)) !== null) {
+              catRows.push({ name: cm[1].trim(), amount: fmtAmt(parseInt(cm[2].replace(/,/g,''))) });
+            }
+
+            // Department breakdown
+            const deptRows = [];
+            const deptRegex = /^(Sales and Marketing|Customer Relation|Administration|Operations|Accounts|Legal|Human Resource|Finance|Procurement|Tech).*?(\d[\d,]+)/gm;
+            let dm;
+            while ((dm = deptRegex.exec(body)) !== null) {
+              deptRows.push({ label: dm[1].trim().split(' ').slice(0,2).join(' '), value: fmtAmt(parseInt(dm[2].replace(/,/g,''))) });
+            }
+
+            note = requestLine
+              ? requestLine.replace(/\s+/g,' ').trim().slice(0,180)
+              : (totalLine || 'Employee expense reimbursement request for approval.');
+
+            fields = [
+              { label: 'From', value: firstName(h.from) },
+              ...(amount ? [{ label: 'Total', value: amount }] : []),
+              ...deptRows.slice(0, 5)
+            ];
 
           } else {
             note = snippet.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
