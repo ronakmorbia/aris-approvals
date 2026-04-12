@@ -409,7 +409,7 @@ async function loadRohanInbox() {
     });
     renderRohanView();
     // Kick off AI for each unseen expense
-    rohanExpenses.forEach(exp => { if (!exp.aiAnalysis && !exp.submitted) generateRohanAI(exp.mid); });
+    rohanExpenses.forEach(exp => { if (!exp.aiSummary && !exp.approved) generateRohanAI(exp.mid); });
   } catch(e) {
     document.getElementById('main').innerHTML = `<div class="error-bar">Error: ${e.message}</div>`;
   } finally {
@@ -474,8 +474,8 @@ function renderRohanView() {
   const now = new Date();
   const monthLabel = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   const total = rohanExpenses.length;
-  const pending = rohanExpenses.filter(e => !e.submitted).length;
-  const approved = rohanExpenses.filter(e => e.approved).length;
+  const pendingCount = rohanExpenses.filter(e => !e.approved).length;
+  const approvedCount = rohanExpenses.filter(e => e.approved).length;
 
   document.getElementById('main').innerHTML = `
     <div class="rohan-header">
@@ -484,7 +484,7 @@ function renderRohanView() {
     <div class="rohan-kpis">
       <div class="mc"><div class="ml">Total</div><div class="mv">${total}</div><span class="mpill">emails</span></div>
       <div class="mc"><div class="ml">Pending</div><div class="mv" style="color:${pending?'#C05A1A':'#18171A'}">${pending}</div><span class="mpill">need your note</span></div>
-      <div class="mc"><div class="ml">Approved</div><div class="mv" style="color:${submitted?'#1E7A45':'#18171A'}">${submitted}</div><span class="mpill">approved by Rohan</span></div>
+      <div class="mc"><div class="ml">Approved</div><div class="mv" style="color:${approvedCount?'#1E7A45':'#18171A'}">${approvedCount}</div><span class="mpill">approved by Rohan</span></div>
     </div>
     <div id="rohan-cards">
       ${rohanExpenses.length ? '' : '<div class="rohan-empty"><div class="rohan-empty-t">No expense emails found</div><div class="rohan-empty-s">APP-EXP emails addressed to you will appear here.</div></div>'}
@@ -504,7 +504,7 @@ function rerenderRohanCard(mid) {
   const exp = rohanExpenses.find(e => e.mid === mid);
   if (!exp) return;
 
-  el.innerHTML = `<div class="rohan-exp-card${exp.approved?' submitted':''}">>
+  el.innerHTML = `<div class="rohan-exp-card${exp.approved?' submitted':''}">
     <div class="rec-top">
       <div class="rec-left">
         <div class="rec-dept"><span class="rec-dept-dot"></span>${exp.dept||'Funds'}</div>
