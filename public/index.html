@@ -18,8 +18,10 @@ header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;position:sticky;top:
 .ts{font-size:11px;color:#9E9B94;font-family:'Inter',sans-serif}
 .rbtn,.rpbtn{display:inline-flex;align-items:center;height:38px;padding:0 20px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:400;cursor:pointer;white-space:nowrap;transition:all .15s;box-sizing:border-box}
 .rbtn{background:#FFC107;color:#18171A;border:0.5px solid transparent}.rbtn:hover{opacity:.85}.rbtn:disabled{opacity:.5;pointer-events:none}
+.mob-reports-wrap{display:none}
 .rpbtn{background:transparent;color:#18171A;border:0.5px solid #C8C5BC}.rpbtn:hover{background:#F5F4F0}.rpbtn.active{background:#18171A;color:#FFFFFF;border-color:#18171A}
 .rbtn:hover{opacity:.85}.rbtn:disabled{opacity:.5;pointer-events:none}
+.mob-reports-wrap{display:none}
 
 /* Main centred layout */
 main{max-width:950px;margin:0 auto;padding:1.75rem 2.5rem}
@@ -154,16 +156,14 @@ textarea:focus{border-color:#9E9B94}
   /* Hide individual report buttons on mobile */
   .ha .rpbtn { display: none; }
 
-  /* Show Reports dropdown button instead */
-  .mob-reports-btn { display: inline-flex !important; }
-
   /* Reports dropdown */
+  .mob-reports-wrap { display: inline-block; }
   .mob-reports-wrap { position: relative; display: inline-block; }
   .mob-reports-btn {
     height: 34px; padding: 0 14px; border-radius: 999px;
-    background: transparent; color: #18171A; border: 0.5px solid #C8C5BC;
+    background: #F6F6F6; color: #18171A; border: 0.5px solid #E5E2DB;
     font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 400;
-    cursor: pointer; display: none; align-items: center; gap: 4px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
   }
   .mob-reports-btn.active { background: #18171A; color: #FFFFFF; border-color: #18171A; }
   .mob-reports-dropdown {
