@@ -564,7 +564,8 @@ function renderGrp(title,dotCls,list){
 function renderCard(item){
   const open=openTid===item.tid;
   // Use AI title if available, else clean the subject line
-  const displayTitle = item.title && item.title !== item.subj ? item.title : cleanTitle(item.subj);
+  const rawTitle = item.title && item.title !== item.subj ? item.title : cleanTitle(item.subj);
+  const displayTitle = refineName(rawTitle);
   // Use AI amount if available, else extract from subject
   // For CRM: amount comes from credit limit field, not subject
   let displayAmount = item.amount || extractAmtFromSubject(item.subj);
@@ -573,7 +574,7 @@ function renderCard(item){
     if (clField) displayAmount = clField.value.split('·')[0].trim();
   }
   const ast=actionStatus[item.tid]||{};
-  const fromName=smartName(item.from||'');
+  const fromName=refineName(smartName(item.from||''));
   const namePill=fromName?`<span class="mpill2">${fromName}</span>`:'';
   const riskBadge=item.risk?`<span class="risk-${item.risk.charAt(0).toUpperCase()+item.risk.slice(1).toLowerCase()}">${item.risk.charAt(0).toUpperCase()+item.risk.slice(1)} Risk</span>`:'';
   const amtApproved=item.rohanApproved?`<span class="mpill-g">Amount Approved</span>`:'';
@@ -583,7 +584,7 @@ function renderCard(item){
 
   let panelContent='';
   if(item.fields&&item.fields.length){
-    panelContent+=`<div class="kv">${item.fields.map(f=>`<span class="kvl">${f.label}</span><span class="kvv">${f.value}</span>`).join('')}</div>`;
+    panelContent+=`<div class="kv">${item.fields.map(f=>`<span class="kvl">${f.label}</span><span class="kvv">${refineName(f.value)}</span>`).join('')}</div>`;
   }
   if(item.fields&&item.fields.length&&item.rows&&item.rows.length)panelContent+=`<div class="sep"></div>`;
   if(item.rows&&item.rows.length){

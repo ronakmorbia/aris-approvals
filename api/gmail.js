@@ -238,6 +238,43 @@ function parseTDAmounts(body) {
 }
 
 
+
+// Shorten company names for display
+function shortName(s) {
+  if (!s) return s;
+  const map = {
+    'arisinfra solutions limited': 'ARIS',
+    'arisinfra solutions private limited': 'ARIS',
+    'arisinfra solutions': 'ARIS',
+    'arisinfra': 'ARIS',
+    'buildmex infra private limited': 'BM',
+    'buildmex infra': 'BM',
+    'buildmex': 'BM',
+    'natureresidences real estate development private limited': 'NRDPL',
+    'natureresidences real estate development': 'NRDPL',
+    'natureresidences realtors private limited': 'NRPL',
+    'natureresidences realtors': 'NRPL',
+    'arisinfra constructions maharashtra private limited': 'ACMPL',
+    'whiteroots infra private limited': 'WR',
+    'whiteroots': 'WR',
+    'chennai mines private limited': 'CMPL',
+    'chennai mines': 'CM',
+    'ps blue metals': 'PS Blue',
+    'p.s. blue metals': 'PS Blue',
+    'apar infra solutions private limited': 'Apar Infra',
+    'apar infra solutions': 'Apar Infra',
+    'sun-x concrete india private limited': 'Sun-X',
+    'netwin roadways': 'Netwin',
+    'sarvadnya enterprises': 'Sarvadnya',
+    'satyam ventures projects private limited': 'Satyam Ventures',
+    'gvee infra pvt ltd': 'GVEE Infra',
+  };
+  const key = s.trim().toLowerCase();
+  if (map[key]) return map[key];
+  // Strip legal suffixes
+  return s.replace(/\s+(private limited|pvt\.?\s*ltd\.?|limited|llp|solutions private limited)$/i, '').trim();
+}
+
 // Generate smart human-readable title from email data
 function smartTitle(type, subj, from, body, rows) {
   const d = subj.match(/(\d{2}-\d{2}-\d{4})/);
@@ -255,12 +292,13 @@ function smartTitle(type, subj, from, body, rows) {
     return `Other Expenses — ASL${dateStr ? ' · ' + dateStr : ''}`;
   }
   if (type === 'TD') {
-    const party = subj
+    const rawParty = subj
       .replace(/^APP-TD[-–\s:]*/i, '')
       .replace(/^\d+\.?\d*\s*Cr?\s*[-–]?\s*Deposit[-–\s]*/i, '')
       .replace(/[-–]?\s*(ASL|BIPL)\s*$/i, '')
       .replace(/Deposit[-–\s]*/i, '')
-      .trim().split(' ').slice(0,4).join(' ');
+      .trim();
+    const party = shortName(rawParty) || rawParty.split(' ').slice(0,4).join(' ');
     return `Trade Deposit — ${party || 'See email'}`;
   }
   if (type === 'TRF') {
@@ -503,7 +541,7 @@ export default async function handler(req, res) {
             ];
             // Smart TD note — what's being deposited, to whom, from which company
             const tdCompany = body.includes('Buildmex') ? 'BM' : 'ARIS';
-            const tdPartyShort = (party || '').split(' ').slice(0,3).join(' ');
+            const tdPartyShort = shortName(party || '') || (party || '').split(' ').slice(0,3).join(' ');
             if (rows.length > 1) {
               note = `${rows.length} tranches to ${tdPartyShort || 'party'} via ${tdCompany}. Approval needed for fund release.`;
             } else {
