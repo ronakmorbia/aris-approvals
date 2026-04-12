@@ -13,15 +13,13 @@ html,body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvet
 header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;position:sticky;top:0;z-index:100;padding-top:env(safe-area-inset-top)}.hinner{max-width:950px;margin:0 auto;padding:0 2.5rem;height:80px;display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:12px}
 .lm{width:30px;height:30px;background:#F5A500;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#18171A;font-family:'Inter',sans-serif}
-.ln{font-size:14px;font-weight:600}.ls{color:#9E9B94;margin:0 4px}.lb{font-size:13px;color:#5C5A55}
+.ln{font-size:14px;font-weight:600}
 .ha{display:flex;align-items:center;gap:12px}
 
 .rbtn,.rpbtn{display:inline-flex;align-items:center;height:38px;padding:0 20px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:400;cursor:pointer;white-space:nowrap;transition:all .15s;box-sizing:border-box}
 .rbtn{background:#FFC107;color:#18171A;border:0.5px solid transparent}.rbtn:hover{opacity:.85}.rbtn:disabled{opacity:.5;pointer-events:none}
-.mob-reports-wrap{display:none}
 .rpbtn{background:transparent;color:#18171A;border:0.5px solid #C8C5BC}.rpbtn:hover{background:#F5F4F0}.rpbtn.active{background:#18171A;color:#FFFFFF;border-color:#18171A}
 .rbtn:hover{opacity:.85}.rbtn:disabled{opacity:.5;pointer-events:none}
-.mob-reports-wrap{display:none}
 
 /* Main centred layout */
 main{max-width:950px;margin:0 auto;padding:1.75rem 2.5rem}
@@ -130,6 +128,8 @@ textarea:focus{border-color:#9E9B94}
 .auth-btn:hover{opacity:.85}
 .auth-note{font-size:11px;color:#9E9B94;margin-top:1rem}
 
+.mob-reports-wrap{display:none}
+
 /* ── MOBILE / iPHONE ──────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
 
@@ -230,7 +230,7 @@ textarea:focus{border-color:#9E9B94}
 <div class="hinner">
   <div class="logo">
     <img src="https://framerusercontent.com/images/DNuphwyKu50xjmPz9WCm4Cel6kk.png" alt="ARIS" style="height:32px;width:auto;display:block;">
-    <span class="ls">·</span><span class="lb">Approvals</span>
+    
   </div>
   <div class="ha">
     <button class="rpbtn" id="rpbtn-payables" onclick="toggleReport('payables')">Payables</button>
