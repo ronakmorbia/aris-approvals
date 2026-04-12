@@ -128,6 +128,39 @@ textarea:focus{border-color:#9E9B94}
 .auth-btn:hover{opacity:.85}
 .auth-note{font-size:11px;color:#9E9B94;margin-top:1rem}
 
+/* ── ROHAN VIEW ── */
+.rohan-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.rohan-month{font-size:18px;font-weight:600;color:#18171A}
+.rohan-month span{font-size:13px;font-weight:400;color:#9E9B94;margin-left:6px}
+.rohan-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
+.rohan-exp-card{background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:14px;padding:20px;margin-bottom:10px}
+.rohan-exp-card.submitted{border-color:#97C459;background:#F9FDF5}
+.rec-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.rec-left{flex:1;min-width:0}
+.rec-dept{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9E9B94;margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.rec-dept-dot{width:5px;height:5px;border-radius:50%;background:#FFC107;display:inline-block}
+.rec-title{font-size:14px;font-weight:500;color:#18171A;line-height:1.35;margin-bottom:3px}
+.rec-from{font-size:11px;color:#9E9B94}
+.rec-right{text-align:right;flex-shrink:0}
+.rec-amount{font-size:20px;font-weight:700;color:#18171A;letter-spacing:-.3px}
+.rec-amount-label{font-size:9px;color:#9E9B94;text-transform:uppercase;letter-spacing:.07em;margin-top:1px}
+.ai-box{background:#FAFAF8;border:0.5px solid #E5E2DB;border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.ai-box-label{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9E9B94;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.ai-pulse{width:5px;height:5px;border-radius:50%;background:#FFC107;animation:aipulse 1.8s ease-in-out infinite}
+@keyframes aipulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ai-spinner{width:12px;height:12px;border:1.5px solid #E5E2DB;border-top-color:#FFC107;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-text{font-size:12px;color:#3A3A3A;line-height:1.65;white-space:pre-wrap}
+.rohan-note-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9E9B94;margin-bottom:5px}
+.rohan-note-ta{width:100%;padding:8px 10px;border:0.5px solid #C8C5BC;border-radius:8px;font-size:12px;color:#18171A;background:#FFFFFF;resize:none;outline:none;font-family:'Inter',sans-serif;line-height:1.5}
+.rohan-note-ta:focus{border-color:#9E9B94}
+.rohan-note-ta:disabled{background:#F5F4F0;color:#9E9B94}
+.rec-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:0.5px solid #F0EEE8}
+.submitted-badge{font-size:11px;font-weight:600;color:#1E7A45;background:#EAF3DE;border:0.5px solid #97C459;padding:3px 10px;border-radius:999px}
+.rohan-empty{text-align:center;padding:3rem;background:#FFFFFF;border:0.5px solid #E5E2DB;border-radius:12px}
+.rohan-empty-t{font-size:15px;font-weight:500;color:#18171A;margin-bottom:4px}
+.rohan-empty-s{font-size:13px;color:#9E9B94}
+
 
 .mob-reports-wrap{display:none}
 
@@ -250,6 +283,7 @@ textarea:focus{border-color:#9E9B94}
       </div>
     </div>
     <button class="rbtn" id="rbtn" onclick="loadInbox()">Refresh</button>
+    <button class="rpbtn" id="rohan-toggle" onclick="toggleRohanTest()" style="display:none">👁 Rohan View</button>
   </div>
 </div>
 </header>
@@ -293,11 +327,11 @@ window.addEventListener('resize', applyMobileUI);
 async function boot(){
   const params=new URLSearchParams(window.location.search);
   const tokensParam=params.get('tokens');
-  if(tokensParam){try{const t=JSON.parse(decodeURIComponent(tokensParam));saveTokens(t);history.replaceState({},'','/');await loadInbox();return;}catch(e){}}
+  if(tokensParam){try{const t=JSON.parse(decodeURIComponent(tokensParam));saveTokens(t);history.replaceState({},'','/');tokens=t;const isRohan=await maybeShowRohanView();if(!isRohan)await loadInbox();return;}catch(e){}}
   const code=params.get('code');
-  if(code){history.replaceState({},'','/');try{const r=await fetch('/api/gmail?action=auth-callback&code='+encodeURIComponent(code));const d=await r.json();if(d.tokens){saveTokens(d.tokens);await loadInbox();return;}}catch(e){}}
+  if(code){history.replaceState({},'','/');try{const r=await fetch('/api/gmail?action=auth-callback&code='+encodeURIComponent(code));const d=await r.json();if(d.tokens){saveTokens(d.tokens);tokens=d.tokens;const isRohan=await maybeShowRohanView();if(!isRohan)await loadInbox();return;}}catch(e){}}
   tokens=loadTokens();
-  if(tokens){await loadInbox();}else{showAuth();}
+  if(tokens){const isRohan=await maybeShowRohanView();if(!isRohan)await loadInbox();}else{showAuth();}
 }
 
 function showAuth(){
@@ -309,9 +343,225 @@ function showAuth(){
       <div class="auth-note">You'll only need to do this once.</div>
     </div>`;}
 
-async function startAuth(){const r=await fetch('/api/gmail?action=auth-url');const d=await r.json();window.location.href=d.url;}
+// ── ROHAN VIEW ────────────────────────────────────────────────────────────────
+const ROHAN_EMAILS = ['rohan@aris.in','rohan.bhatia@aris.in','rohan@arisinfra.com']; // extend as needed
+let isRohanView = false;
+let rohanExpenses = []; // { mid, tid, subj, from, date, amount, dept, body, aiAnalysis, aiGenerating, note, submitted }
+let rohanNextAi = 0;
+
+function checkRohanView(email) {
+  return ROHAN_EMAILS.some(e => (email||'').toLowerCase().includes(e.split('@')[0]));
+}
+
+// ── ROHAN TEST TOGGLE (for Ronak to test Rohan's view) ───────────────────────
+function toggleRohanTest() {
+  isRohanView = !isRohanView;
+  const btn = document.getElementById('rohan-toggle');
+  if (btn) btn.classList.toggle('active', isRohanView);
+  // Show/hide report buttons
+  ['rpbtn-payables','rpbtn-expenses','rpbtn-finance','mob-reports-wrap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isRohanView ? 'none' : '';
+  });
+  applyMobileUI();
+  if (isRohanView) {
+    loadRohanInbox();
+  } else {
+    rohanExpenses = [];
+    loadInbox();
+  }
+}
+
+async function maybeShowRohanView() {
+  // Get logged-in user's email
+  try {
+    const r = await fetch('/api/gmail?action=whoami', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tokens}) });
+    const d = await r.json();
+    if (d.refreshedTokens) saveTokens(d.refreshedTokens);
+    if (checkRohanView(d.email)) {
+      isRohanView = true;
+      // Hide report buttons — Rohan doesn't use those
+      ['rpbtn-payables','rpbtn-expenses','rpbtn-finance','mob-reports-wrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      loadRohanInbox();
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+async function loadRohanInbox() {
+  const btn = document.getElementById('rbtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+  document.getElementById('main').innerHTML = '<div class="loading">Fetching expense emails…</div>';
+  try {
+    const r = await fetch('/api/gmail?action=rohan-inbox', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tokens}) });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    if (d.refreshedTokens) saveTokens(d.refreshedTokens);
+    // Merge with existing (preserve notes/submitted state)
+    const existing = new Map(rohanExpenses.map(e => [e.mid, e]));
+    rohanExpenses = d.items.map(item => {
+      const prev = existing.get(item.mid) || {};
+      return { ...item, aiSummary: prev.aiSummary || null, aiFlag: prev.aiFlag || null, aiGenerating: false, note: prev.note || '', submitted: prev.submitted || false };
+    });
+    renderRohanView();
+    // Kick off AI for each unseen expense
+    rohanExpenses.forEach(exp => { if (!exp.aiAnalysis && !exp.submitted) generateRohanAI(exp.mid); });
+  } catch(e) {
+    document.getElementById('main').innerHTML = `<div class="error-bar">Error: ${e.message}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
+  }
+}
+
+async function generateRohanAI(mid) {
+  const exp = rohanExpenses.find(e => e.mid === mid);
+  if (!exp || exp.aiSummary) return;
+  exp.aiGenerating = true;
+  rerenderRohanCard(mid);
+
+  const istech = /tech|aws|cloud|saas|software|subscription|figma|cursor|anthropic|openai|atlassian|slack|notion|zoom|datadog/i.test(exp.subj + ' ' + (exp.dept||'') + ' ' + (exp.body||'').slice(0,200));
+  const issalary = /salary|payroll|wages/i.test(exp.subj + ' ' + (exp.dept||''));
+
+  const prompt = `You are helping Rohan at ARIS summarise an expense email for CMD Ronak Morbia. Be extremely brief — Ronak reads this on mobile.
+
+${istech ? `TECH EXPENSE RULES:
+- Check if Jiten has approved (look for his name/sign-off anywhere in the email). If yes: no flag. If NOT present: flag it.
+- Summary: one sentence — main tools and what they're for.` : ''}
+${issalary ? `SALARY RULES:
+- Summarise what happened this month: headcount, joiners, exits, increments, special payments or deductions. 2-3 sentences max.
+- No flag unless something unusual is explicitly mentioned.` : ''}
+${!istech && !issalary ? `GENERAL EXPENSE RULES:
+- Check if major line items mention an invoice, bill number, or vendor reference. Flag if any significant item has no backup.
+- Summary: one sentence — what these expenses are for.` : ''}
+
+Email:
+Subject: ${exp.subj}
+Department: ${exp.dept||'Funds'}
+Amount: ${exp.amount||''}
+Body:
+${(exp.body||'').slice(0,1000)}
+
+Reply in EXACTLY this format (no other text):
+SUMMARY: [your summary]
+FLAG: [one sentence if needed, else leave blank]`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+    const summaryMatch = raw.match(/SUMMARY:\s*(.+)/i);
+    const flagMatch = raw.match(/FLAG:\s*(.+)/i);
+    exp.aiSummary = summaryMatch ? summaryMatch[1].trim() : raw.trim();
+    const flagText = flagMatch ? flagMatch[1].trim() : '';
+    exp.aiFlag = flagText && flagText.toLowerCase() !== 'none' && flagText !== '—' ? flagText : null;
+  } catch(e) {
+    exp.aiSummary = 'Could not generate summary.';
+    exp.aiFlag = null;
+  }
+  exp.aiGenerating = false;
+  rerenderRohanCard(mid);
+}
+
+function renderRohanView() {
+  const now = new Date();
+  const monthLabel = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  const total = rohanExpenses.length;
+  const pending = rohanExpenses.filter(e => !e.submitted).length;
+  const submitted = rohanExpenses.filter(e => e.submitted).length;
+
+  document.getElementById('main').innerHTML = `
+    <div class="rohan-header">
+      <div class="rohan-month">${monthLabel} <span>Expense Inbox</span></div>
+    </div>
+    <div class="rohan-kpis">
+      <div class="mc"><div class="ml">Total</div><div class="mv">${total}</div><span class="mpill">emails</span></div>
+      <div class="mc"><div class="ml">Pending</div><div class="mv" style="color:${pending?'#C05A1A':'#18171A'}">${pending}</div><span class="mpill">need your note</span></div>
+      <div class="mc"><div class="ml">Submitted</div><div class="mv" style="color:${submitted?'#1E7A45':'#18171A'}">${submitted}</div><span class="mpill">sent to Ronak</span></div>
+    </div>
+    <div id="rohan-cards">
+      ${rohanExpenses.length ? '' : '<div class="rohan-empty"><div class="rohan-empty-t">No expense emails found</div><div class="rohan-empty-s">APP-EXP emails addressed to you will appear here.</div></div>'}
+    </div>`;
+
+  rohanExpenses.forEach(exp => {
+    const div = document.createElement('div');
+    div.id = `rcard-${exp.mid}`;
+    document.getElementById('rohan-cards').appendChild(div);
+    rerenderRohanCard(exp.mid);
+  });
+}
+
+function rerenderRohanCard(mid) {
+  const el = document.getElementById(`rcard-${mid}`);
+  if (!el) return;
+  const exp = rohanExpenses.find(e => e.mid === mid);
+  if (!exp) return;
+
+  el.innerHTML = `<div class="rohan-exp-card${exp.submitted?' submitted':''}">
+    <div class="rec-top">
+      <div class="rec-left">
+        <div class="rec-dept"><span class="rec-dept-dot"></span>${exp.dept||'Funds'}</div>
+        <div class="rec-title">${cleanTitle(exp.subj)}</div>
+        <div class="rec-from">${exp.from} · ${exp.date}</div>
+      </div>
+      <div class="rec-right">
+        <div class="rec-amount">${exp.amount||'—'}</div>
+        <div class="rec-amount-label">Requested</div>
+      </div>
+    </div>
+    <div class="ai-box">
+      <div class="ai-box-label"><span class="ai-pulse"></span>AI Summary</div>
+      ${exp.aiGenerating
+        ? `<span class="ai-spinner"></span> <span style="font-size:12px;color:#9E9B94;vertical-align:middle"> Analysing…</span>`
+        : exp.aiSummary
+          ? `<div class="ai-text">${exp.aiSummary}</div>${exp.aiFlag ? `<div style="font-size:11px;color:#8A4700;background:#FFF4DC;border:0.5px solid #FAC775;border-radius:5px;padding:5px 9px;margin-top:8px;line-height:1.45">⚠ ${exp.aiFlag}</div>` : ''}`
+          : `<span style="font-size:12px;color:#9E9B94">—</span>`}
+    </div>
+    <div class="rohan-note-label">Your Note <span style="font-weight:400;color:#9E9B94;font-size:10px">(optional)</span></div>
+    <textarea class="rohan-note-ta" rows="2" placeholder="Add only if something specific needs flagging to Ronak…"
+      ${exp.submitted?'disabled':''} onchange="rohanNoteChange('${mid}',this.value)">${exp.note}</textarea>
+    <div class="rec-footer">
+      <div style="font-size:11px;color:#9E9B94">${(exp.body||'').slice(0,80)}…</div>
+      ${exp.submitted
+        ? `<span class="submitted-badge">✓ Submitted to Ronak</span>`
+        : `<button class="ba" onclick="submitToRonak('${mid}')" ${exp.aiGenerating?'disabled':''}>Submit to Ronak →</button>`}
+    </div>
+  </div>`;
+}
+
+function rohanNoteChange(mid, val) {
+  const exp = rohanExpenses.find(e => e.mid === mid);
+  if (exp) exp.note = val;
+}
+
+async function submitToRonak(mid) {
+  const exp = rohanExpenses.find(e => e.mid === mid);
+  if (!exp) return;
+  exp.submitted = true;
+
+  // Send reply on the thread flagging it as rohan-approved for Ronak's view
+  const body = `Rohan's Analysis:\n${exp.aiAnalysis||''}\n\nRohan's Note:\n${exp.note||'(none)'}\n\nROHAN-APPROVED`;
+  try {
+    await fetch('/api/gmail?action=send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens, tid: exp.tid, to: 'ronak@aris.in', cc: '', subject: exp.subj, body })
+    });
+  } catch(e) {}
+
+  rerenderRohanCard(mid);
+  renderRohanView();
+}
 
 async function loadInbox(){
+  if(isRohanView){loadRohanInbox();return;}
   const btn=document.getElementById('rbtn');
   if(btn){btn.disabled=true;btn.textContent='Refreshing…';}
   document.getElementById('main').innerHTML='<div class="loading">Fetching your inbox…</div>';
@@ -323,6 +573,9 @@ async function loadInbox(){
     items=d.items.map(item=>({...item,type:detectType(item.subj),amt:extractAmt(item.subj),from:cleanFrom(item.from),date:formatDate(item.date),snip:decodeHtml(item.snippet)}));
     renderAll();
     startPolling();
+    // Show Rohan test toggle for Ronak
+    const rt = document.getElementById('rohan-toggle');
+    if (rt) rt.style.display = 'inline-flex';
   }catch(e){
     if(e.message.includes('invalid_grant')||e.message.includes('401')){saveTokens(null);localStorage.removeItem('aris_tokens');showAuth();return;}
     document.getElementById('main').innerHTML=`<div class="error-bar">Error: ${e.message}</div>`;

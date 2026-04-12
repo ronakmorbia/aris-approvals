@@ -721,5 +721,99 @@ export default async function handler(req, res) {
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
+  // ── WHOAMI — return logged-in user's email ─────────────────────────────────
+  if (action === 'whoami') {
+    try {
+      const profile = await gmail.users.getProfile({ userId: 'me' });
+      return res.json({ email: profile.data.emailAddress, refreshedTokens: oauth2Client.credentials });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── ROHAN INBOX — EXP emails where Rohan is To/CC ─────────────────────────
+  if (action === 'rohan-inbox') {
+    try {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const afterDate = `${monthStart.getFullYear()}/${String(monthStart.getMonth()+1).padStart(2,'0')}/01`;
+
+      // Fetch APP-EXP emails in Funds label this month
+      const listRes = await gmail.users.messages.list({
+        userId: 'me',
+        q: `label:Funds APP-EXP after:${afterDate}`,
+        maxResults: 50
+      });
+      const messages = listRes.data.messages || [];
+
+      const items = await Promise.all(messages.map(async (msg) => {
+        try {
+          const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+          const hdrs = {};
+          for (const h of (full.data.payload?.headers || [])) hdrs[h.name.toLowerCase()] = h.value;
+
+          const subj = hdrs['subject'] || '';
+          const from = hdrs['from'] || '';
+          const to = hdrs['to'] || '';
+          const cc = hdrs['cc'] || '';
+          const date = hdrs['date'] || '';
+
+          // Only include emails TO or CC rohan
+          const allRecipients = (to + ' ' + cc).toLowerCase();
+          if (!allRecipients.includes('rohan')) return null;
+
+          // Extract body
+          const body = extractPlainText(full.data.payload);
+          const trimmedBody = stripQuotes(body);
+
+          // Extract amount from subject
+          const amtMatch = subj.match(/Rs\.?\s*([\d,]+)/i);
+          let amount = '';
+          if (amtMatch) {
+            const n = parseInt(amtMatch[1].replace(/,/g,''));
+            amount = fmtAmt(n);
+          }
+
+          // Extract total from body if not in subject
+          if (!amount) {
+            const bodyAmt = trimmedBody.match(/Total Amount\s*[:\s]+([\d,]+)/i) || trimmedBody.match(/Rs\.?\s*([\d,]+)\s*\/[-]?/i);
+            if (bodyAmt) amount = fmtAmt(parseInt(bodyAmt[1].replace(/,/g,'')));
+          }
+
+          // Detect department
+          const dept = (() => {
+            const s = (subj + ' ' + from).toLowerCase();
+            if (/\bhr\b|human resource/i.test(s)) return 'HR';
+            if (/\bcrm\b|customer/i.test(s)) return 'CRM';
+            if (/\btax\b/i.test(s)) return 'Tax';
+            if (/\badmin\b/i.test(s)) return 'Admin';
+            if (/\bops\b|operation/i.test(s)) return 'Operations';
+            return 'Funds';
+          })();
+
+          // Check if Rohan already replied (submitted)
+          const thread = await gmail.users.threads.get({ userId: 'me', id: msg.threadId, format: 'full' });
+          const alreadySubmitted = (thread.data.messages || []).some(m => {
+            const mFrom = (m.payload?.headers || []).find(h => h.name === 'From')?.value || '';
+            const mBody = extractPlainText(m.payload);
+            return mFrom.toLowerCase().includes('rohan') && mBody.includes('ROHAN-APPROVED');
+          });
+
+          return {
+            mid: msg.id,
+            tid: msg.threadId,
+            subj,
+            from: firstName(from) + ' <' + (from.match(/<([^>]+)>/)?.[1] || from) + '>',
+            date: new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+            amount,
+            dept,
+            body: trimmedBody.slice(0, 1200),
+            submitted: alreadySubmitted
+          };
+        } catch(e) { return null; }
+      }));
+
+      return res.json({ items: items.filter(Boolean), refreshedTokens: oauth2Client.credentials });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
   return res.status(400).json({ error: 'Unknown action' });
 }
