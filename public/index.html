@@ -710,6 +710,57 @@ function toggleReport(type) {
   if (!reportCache[type]) loadReport(type);
 }
 
+// ── Global name helpers ───────────────────────────────────────────────────
+const CAPS_WORDS = new Set(['asl','aris','icici','hdfc','idbi','axis','sbi','ncd','gst','llp','pvt','ltd','bipl','atpl','acmpl','wrpl','aws','api','crm','erp','emi','neft','rtgs','upi','otp','kyc','pan','gst','dpo','rmc','od','ca']);
+
+function toTitleCase(s) {
+  return (s||'').replace(/[\w&]+/g, t => {
+    const lower = t.toLowerCase();
+    if (CAPS_WORDS.has(lower)) return t.toUpperCase();
+    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  });
+}
+
+function refineName(s) {
+  if (!s) return s;
+  const t = s.trim();
+  const key = t.toLowerCase().replace(/\s*[-–]+\s*$/, '').trim();
+  const exact = {
+    'arisinfra solutions limited':'ARIS','arisinfra solutions private limited':'ARIS','arisinfra solutions':'ARIS','arisinfra':'ARIS',
+    'buildmex infra private limited':'BM','buildmex infra':'BM','buildmex':'BM','bipl':'BM',
+    'natureresidences real estate development private limited':'NRDPL','natureresidences real estate development':'NRDPL',
+    'natureresidences realtors private limited':'NRPL','natureresidences realtors':'NRPL',
+    'arisinfra constructions maharashtra private limited':'ACMPL','arisinfra constructions':'ACMPL','acmpl':'ACMPL',
+    'whiteroots infra private limited':'WR','whiteroots infra':'WR','whiteroots':'WR','wrpl':'WR',
+    'chennai mines private limited':'CMPL','shri chennai mines':'CM','chennai mines':'CM',
+    'ps blue metals':'PS Blue','p.s. blue metals':'PS Blue',
+    'apar infra solutions private limited':'Apar Infra','apar infra solutions':'Apar Infra',
+    'netwin roadways':'Netwin Roadways','sarvadnya enterprises':'Sarvadnya',
+    'satyam ventures projects private limited':'Satyam Ventures',
+    'gvee infra pvt ltd':'GVEE Infra','gvee infra':'GVEE Infra',
+    'google clouds':'Google Cloud','google cloud':'Google Cloud',
+    'atlasian':'Atlassian','atlassian':'Atlassian','slack':'Slack','sazs apps':'Sazs Apps',
+    'aws':'AWS','openai':'OpenAI','mufg':'MUFG Bank','rbsa advisors':'RBSA Advisors',
+    'thanawala consultancy':'Thanawala Consultancy','vesta legal':'Vesta Legal',
+    'creativeit':'Creative IT','creative it':'Creative IT','techmagify':'TechMagify',
+    'tata aig':'Tata AIG','rebrandly':'Rebrandly','gupshup':'Gupshup','cursor':'Cursor',
+    'anthropic':'Anthropic','figma':'Figma','dropbox':'Dropbox','airtel':'Airtel',
+    'relic':'Relic','texterity':'Texterity','sunx':'Sun-X','sun-x concrete india private limited':'Sun-X',
+    'manish bohra':'Manish Bohra','corpcomm studio - annual report design':'Corpcomm Studio',
+    'corpcomm studio':'Corpcomm Studio','admin - rent, utility & vendor payments':'Admin & Vendor Payments',
+    'rubix (tata insurance) -':'Rubix (Tata Insurance)','rubix (tata insurance)':'Rubix (Tata Insurance)',
+    's&t legal -':'S&T Legal','s&t legal':'S&T Legal','arbitration':'Arbitration Fees',
+  };
+  if (exact[key]) return exact[key];
+  const corpCC = key.match(/^corp cc\s*[-–]\s*(.+)$/i);
+  if (corpCC) return toTitleCase(corpCC[1].trim()) + ' Corporate Card';
+  const legalSuffixes = /\s+(private limited|pvt\.?\s*ltd\.?|limited|llp|solutions private limited|infra private limited|projects private limited|ventures private limited|enterprises private limited|constructions private limited|realtors private limited|real estate development private limited)$/i;
+  const stripped = t.replace(/\s*[-–]+\s*$/, '').trim();
+  const withoutSuffix = stripped.replace(legalSuffixes, '').trim();
+  if (withoutSuffix.length < stripped.length && withoutSuffix.length > 2) return toTitleCase(withoutSuffix);
+  return toTitleCase(stripped);
+}
+
 function renderReportPanel() {
   const main = document.getElementById('main');
   if (!main) return;
@@ -720,111 +771,7 @@ function renderReportPanel() {
     main.insertBefore(panel, main.firstChild);
   }
 
-  // Words that should always be ALL CAPS
-  const CAPS_WORDS = new Set(['asl','aris','icici','hdfc','idbi','axis','sbi','ncd','gst','llp','pvt','ltd','bipl','atpl','acmpl','wrpl','aws','api','crm','erp','emi','neft','rtgs','upi','otp','kyc','pan','gst','dpo','rmc','od','ca']);
 
-  const toTitleCase = s => (s||'').replace(/[\w&]+/g, t => {
-    const lower = t.toLowerCase();
-    if (CAPS_WORDS.has(lower)) return t.toUpperCase();
-    return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
-  });
-
-  const refineName = (s) => {
-    if (!s) return s;
-    const t = s.trim();
-    const key = t.toLowerCase().replace(/\s*[-–]+\s*$/, '').trim();
-
-    // ── Exact matches ────────────────────────────────────────────────────────
-    const exact = {
-      // Company abbreviations
-      'arisinfra solutions limited': 'ARIS',
-      'arisinfra solutions private limited': 'ARIS',
-      'arisinfra solutions': 'ARIS',
-      'arisinfra': 'ARIS',
-      'buildmex infra private limited': 'BM',
-      'buildmex infra': 'BM',
-      'buildmex': 'BM',
-      'bipl': 'BM',
-      'natureresidences real estate development private limited': 'NRDPL',
-      'natureresidences real estate development': 'NRDPL',
-      'natureresidences realtors private limited': 'NRPL',
-      'natureresidences realtors': 'NRPL',
-      'arisinfra constructions maharashtra private limited': 'ACMPL',
-      'arisinfra constructions': 'ACMPL',
-      'acmpl': 'ACMPL',
-      'whiteroots infra private limited': 'WR',
-      'whiteroots infra': 'WR',
-      'whiteroots': 'WR',
-      'wrpl': 'WR',
-      'chennai mines private limited': 'CMPL',
-      'shri chennai mines': 'CM',
-      'chennai mines': 'CM',
-      'ps blue metals': 'PS Blue',
-      'p.s. blue metals': 'PS Blue',
-      'apar infra solutions private limited': 'Apar Infra',
-      'apar infra solutions': 'Apar Infra',
-      'netwin roadways': 'Netwin Roadways',
-      'sarvadnya enterprises': 'Sarvadnya',
-      'satyam ventures projects private limited': 'Satyam Ventures',
-      'gvee infra pvt ltd': 'GVEE Infra',
-      'gvee infra': 'GVEE Infra',
-      // Tech tools
-      'google clouds': 'Google Cloud',
-      'google cloud': 'Google Cloud',
-      'atlasian': 'Atlassian',
-      'atlassian': 'Atlassian',
-      'slack': 'Slack',
-      'sazs apps': 'Sazs Apps',
-      'aws': 'AWS',
-      'openai': 'OpenAI',
-      'mufg': 'MUFG Bank',
-      'rbsa advisors': 'RBSA Advisors',
-      'thanawala consultancy': 'Thanawala Consultancy',
-      'vesta legal': 'Vesta Legal',
-      'creativeit': 'Creative IT',
-      'creative it': 'Creative IT',
-      'techmagify': 'TechMagify',
-      'tata aig': 'Tata AIG',
-      'rebrandly': 'Rebrandly',
-      'gupshup': 'Gupshup',
-      'cursor': 'Cursor',
-      'anthropic': 'Anthropic',
-      'figma': 'Figma',
-      'dropbox': 'Dropbox',
-      'airtel': 'Airtel',
-      'relic': 'Relic',
-      'texterity': 'Texterity',
-      'sunx': 'Sun-X',
-      'sun-x concrete india private limited': 'Sun-X',
-      'manish bohra': 'Manish Bohra',
-      'corpcomm studio - annual report design': 'Corpcomm Studio',
-      'corpcomm studio': 'Corpcomm Studio',
-      'admin - rent, utility & vendor payments': 'Admin & Vendor Payments',
-      'rubix (tata insurance) -': 'Rubix (Tata Insurance)',
-      'rubix (tata insurance)': 'Rubix (Tata Insurance)',
-      's&t legal -': 'S&T Legal',
-      's&t legal': 'S&T Legal',
-      'arbitration': 'Arbitration Fees',
-    };
-
-    if (exact[key]) return exact[key];
-
-    // ── Corp CC - BANK → Bank Corporate Card ────────────────────────────────
-    const corpCC = key.match(/^corp cc\s*[-–]\s*(.+)$/i);
-    if (corpCC) return toTitleCase(corpCC[1].trim()) + ' Corporate Card';
-
-    // ── Strip legal suffixes — keep first meaningful part ────────────────────
-    const legalSuffixes = /\s+(private limited|pvt\.?\s*ltd\.?|limited|llp|solutions private limited|infra private limited|projects private limited|ventures private limited|enterprises private limited|constructions private limited|realtors private limited|real estate development private limited)$/i;
-    const stripped = t.replace(/\s*[-–]+\s*$/, '').trim();
-    const withoutSuffix = stripped.replace(legalSuffixes, '').trim();
-
-    // If stripping made it shorter, use the stripped version
-    if (withoutSuffix.length < stripped.length && withoutSuffix.length > 2) {
-      return toTitleCase(withoutSuffix);
-    }
-
-    return toTitleCase(stripped);
-  };
   const titles = { payables:'Payables Report', expenses:'Expenses Report', finance:'Finance Cost Report' };
   const data = reportCache[activeReport];
 
