@@ -470,12 +470,14 @@ FLAG: [one sentence if needed, else leave blank]`;
   rerenderRohanCard(mid);
 }
 
+let rohanOpenMid = null;
+
 function renderRohanView() {
   const now = new Date();
   const monthLabel = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   const total = rohanExpenses.length;
-  const pendingCount = rohanExpenses.filter(e => !e.approved).length;
-  const approvedCount = rohanExpenses.filter(e => e.approved).length;
+  const pendingList = rohanExpenses.filter(e => !e.approved);
+  const approvedList = rohanExpenses.filter(e => e.approved);
 
   document.getElementById('main').innerHTML = `
     <div class="rohan-header">
@@ -483,19 +485,28 @@ function renderRohanView() {
     </div>
     <div class="rohan-kpis">
       <div class="mc"><div class="ml">Total</div><div class="mv">${total}</div><span class="mpill">emails</span></div>
-      <div class="mc"><div class="ml">Pending</div><div class="mv" style="color:${pending?'#C05A1A':'#18171A'}">${pending}</div><span class="mpill">need your note</span></div>
-      <div class="mc"><div class="ml">Approved</div><div class="mv" style="color:${approvedCount?'#1E7A45':'#18171A'}">${approvedCount}</div><span class="mpill">approved by Rohan</span></div>
+      <div class="mc"><div class="ml">Pending</div><div class="mv" style="color:${pendingList.length?'#C05A1A':'#18171A'}">${pendingList.length}</div><span class="mpill">awaiting approval</span></div>
+      <div class="mc"><div class="ml">Approved</div><div class="mv" style="color:${approvedList.length?'#1E7A45':'#18171A'}">${approvedList.length}</div><span class="mpill">sent to Ronak</span></div>
     </div>
-    <div id="rohan-cards">
-      ${rohanExpenses.length ? '' : '<div class="rohan-empty"><div class="rohan-empty-t">No expense emails found</div><div class="rohan-empty-s">APP-EXP emails addressed to you will appear here.</div></div>'}
-    </div>`;
+    ${!total ? '<div class="rohan-empty"><div class="rohan-empty-t">No expense emails found</div><div class="rohan-empty-s">APP-EXP emails addressed to you will appear here.</div></div>' : ''}
+    ${pendingList.length ? `<div class="grp"><div class="gh"><div class="gd gd-p"></div><span class="gl">Pending — Your Approval</span><span class="gc">${pendingList.length}</span></div><div id="rohan-pending"></div></div>` : ''}
+    ${approvedList.length ? `<div class="grp"><div class="gh"><div class="gd gd-d"></div><span class="gl">Approved</span><span class="gc">${approvedList.length}</span></div><div id="rohan-approved"></div></div>` : ''}
+  `;
 
   rohanExpenses.forEach(exp => {
+    const containerId = exp.approved ? 'rohan-approved' : 'rohan-pending';
+    const container = document.getElementById(containerId);
+    if (!container) return;
     const div = document.createElement('div');
     div.id = `rcard-${exp.mid}`;
-    document.getElementById('rohan-cards').appendChild(div);
+    container.appendChild(div);
     rerenderRohanCard(exp.mid);
   });
+}
+
+function toggleRohanCard(mid) {
+  rohanOpenMid = rohanOpenMid === mid ? null : mid;
+  rohanExpenses.forEach(e => rerenderRohanCard(e.mid));
 }
 
 function rerenderRohanCard(mid) {
@@ -503,35 +514,47 @@ function rerenderRohanCard(mid) {
   if (!el) return;
   const exp = rohanExpenses.find(e => e.mid === mid);
   if (!exp) return;
+  const open = rohanOpenMid === mid;
 
-  el.innerHTML = `<div class="rohan-exp-card${exp.approved?' submitted':''}">
-    <div class="rec-top">
-      <div class="rec-left">
-        <div class="rec-dept"><span class="rec-dept-dot"></span>${exp.dept||'Funds'}</div>
-        <div class="rec-title">${cleanTitle(exp.subj)}</div>
-        <div class="rec-from">${exp.from} · ${exp.date}</div>
+  const aiContent = exp.aiGenerating
+    ? `<span class="ai-spinner"></span> <span style="font-size:12px;color:#9E9B94;vertical-align:middle"> Analysing…</span>`
+    : exp.aiSummary
+      ? `<div class="ai-text">${exp.aiSummary}</div>${exp.aiFlag ? `<div style="font-size:11px;color:#8A4700;background:#FFF4DC;border:0.5px solid #FAC775;border-radius:5px;padding:5px 9px;margin-top:8px;line-height:1.45">⚠ ${exp.aiFlag}</div>` : ''}`
+      : `<span style="font-size:12px;color:#9E9B94">Waiting for AI…</span>`;
+
+  el.innerHTML = `<div class="card${open?' open':''}" onclick="toggleRohanCard('${mid}')">
+    <div class="ch">
+      <div class="cicon ic-EXP">${ICONS.EXP}</div>
+      <div class="cmain">
+        <div class="ctitle">${cleanTitle(exp.subj)}</div>
+        <div class="cmeta">
+          <span class="mdate">${exp.date}</span>
+          <span class="mdot">·</span>
+          <span class="mpill2">${exp.from}</span>
+          <span class="mdot">·</span>
+          <span class="mpill2">${exp.dept||'Funds'}</span>
+          ${exp.approved ? '<span class="mdot">·</span><span class="badge-done">Approved</span>' : ''}
+          ${exp.aiFlag && !exp.approved ? '<span class="mdot">·</span><span class="risk-H">Flag</span>' : ''}
+        </div>
       </div>
-      <div class="rec-right">
-        <div class="rec-amount">${exp.amount||'—'}</div>
-        <div class="rec-amount-label">Requested</div>
+      <span class="camount">${exp.amount||'—'}</span>
+    </div>
+    <div class="panel${open?' show':''}">
+      <div class="ai-box" style="margin-bottom:12px">
+        <div class="ai-box-label"><span class="ai-pulse"></span>AI Summary</div>
+        ${aiContent}
       </div>
-    </div>
-    <div class="ai-box">
-      <div class="ai-box-label"><span class="ai-pulse"></span>AI Summary</div>
-      ${exp.aiGenerating
-        ? `<span class="ai-spinner"></span> <span style="font-size:12px;color:#9E9B94;vertical-align:middle"> Analysing…</span>`
-        : exp.aiSummary
-          ? `<div class="ai-text">${exp.aiSummary}</div>${exp.aiFlag ? `<div style="font-size:11px;color:#8A4700;background:#FFF4DC;border:0.5px solid #FAC775;border-radius:5px;padding:5px 9px;margin-top:8px;line-height:1.45">⚠ ${exp.aiFlag}</div>` : ''}`
-          : `<span style="font-size:12px;color:#9E9B94">—</span>`}
-    </div>
-    <div class="rohan-note-label">Your Note <span style="font-weight:400;color:#9E9B94;font-size:10px">(optional)</span></div>
-    <textarea class="rohan-note-ta" rows="2" placeholder="Add only if something specific needs flagging to Ronak…"
-      ${exp.approved?'disabled':''} onchange="rohanNoteChange('${mid}',this.value)">${exp.note}</textarea>
-    <div class="rec-footer">
-      <div style="font-size:11px;color:#9E9B94">${(exp.body||'').slice(0,80)}…</div>
-      ${exp.approved
-        ? `<span class="submitted-badge">✓ Approved by Rohan</span>`
-        : `<button class="ba" onclick="submitToRonak('${mid}')" ${exp.aiGenerating?'disabled':''}>Approve & Send to Ronak →</button>`}
+      ${exp.approved && exp.rohanNote ? `
+        <div class="note" style="margin-bottom:10px"><strong style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#9E9B94">Your Note</strong><br>${exp.rohanNote}</div>
+      ` : ''}
+      ${!exp.approved ? `
+        <div class="rohan-note-label" style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9E9B94;margin-bottom:5px">Your Note <span style="font-weight:400">(optional)</span></div>
+        <textarea class="rohan-note-ta" rows="2" placeholder="Add only if something specific needs flagging to Ronak…"
+          onclick="event.stopPropagation()" onchange="rohanNoteChange('${mid}',this.value)">${exp.note}</textarea>
+        <div class="acts" style="margin-top:8px">
+          <button class="ba" onclick="event.stopPropagation();submitToRonak('${mid}')" ${exp.aiGenerating?'disabled':''}>Approve & Send to Ronak →</button>
+        </div>
+      ` : ''}
     </div>
   </div>`;
 }
@@ -546,8 +569,8 @@ async function submitToRonak(mid) {
   if (!exp) return;
   exp.approved = true;
 
-  // Send reply on the thread flagging it as rohan-approved for Ronak's view
-  const body = `Rohan's Analysis:\n${exp.aiAnalysis||''}\n\nRohan's Note:\n${exp.note||'(none)'}\n\nROHAN-APPROVED`;
+  // Send reply on the thread — this is Rohan's approval to Ronak
+  const body = `Approved.\n\nSummary: ${exp.aiSummary||''}${exp.note ? '\n\nNote: '+exp.note : ''}`;
   try {
     await fetch('/api/gmail?action=send', {
       method: 'POST',
