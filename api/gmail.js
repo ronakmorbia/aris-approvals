@@ -419,9 +419,9 @@ export default async function handler(req, res) {
               const rohanBody = extractPlainText(rohanMsg.payload);
               rows = parseExpenseRows(rohanBody);
               rohanApproved = true;
-              note = 'Expenses pre-approved by Rohan. Top 5 breakdown provided.';
+              note = `${rows.length} expense items pre-approved by Rohan. Review breakdown and approve.`;
             } else {
-              note = 'Approved by Rohan. Expense list in attached Excel.';
+              note = 'Pre-approved by Rohan. Full list in attached Excel. Awaiting your sign-off.';
               rohanApproved = true;
             }
 
@@ -471,7 +471,7 @@ export default async function handler(req, res) {
               { label: 'Accounts', value: accts },
               { label: 'Total', value: amount },
             ];
-            note = rows.length ? `Top ${rows.length} vendors shown. Full list in attached Excel.` : 'Approved sheet attached.';
+            note = rows.length ? `${rows.length} vendors across ${accts} accounts. Full list in Excel.` : 'Payment list attached — awaiting your approval.';
 
           } else if (type === 'TD') {
             const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
@@ -501,7 +501,14 @@ export default async function handler(req, res) {
               { label: 'Account', value: account },
               { label: 'Total', value: amount },
             ];
-            note = `Trade deposit request from Trupti for ${party || 'party'}.`;
+            // Smart TD note — what's being deposited, to whom, from which company
+            const tdCompany = body.includes('Buildmex') ? 'BM' : 'ARIS';
+            const tdPartyShort = (party || '').split(' ').slice(0,3).join(' ');
+            if (rows.length > 1) {
+              note = `${rows.length} tranches to ${tdPartyShort || 'party'} via ${tdCompany}. Approval needed for fund release.`;
+            } else {
+              note = `Deposit to ${tdPartyShort || 'party'} via ${tdCompany}. Approval needed for fund release.`;
+            }
 
           } else if (type === 'CRM') {
             const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
@@ -518,7 +525,13 @@ export default async function handler(req, res) {
                 amount = fmtAmt(n);
               }
             }
-            note = `Credit approval request from Divya.${risk ? ' Credit team recommends ' + risk + ' Risk.' : ''}`;
+            // Smart CRM note
+            const custField = fields.find(f => f.label === 'Customer Name' || f.label === 'Party Name');
+            const custName = custField ? custField.value.trim().split('\n')[0].split(' ').slice(0,3).join(' ') : '';
+            const riskNote = risk ? ` Credit team flags ${risk} risk.` : '';
+            note = custName
+              ? `Credit limit requested for ${custName}.${riskNote} Review fields and approve or reject.`
+              : `Credit limit approval required.${riskNote}`;
 
           } else if (type === 'TRF') {
             const snipLow = snippet.toLowerCase();
@@ -533,12 +546,20 @@ export default async function handler(req, res) {
             if (toMatch) fields.push({ label: 'To', value: toMatch[1].trim() });
             if (amtMatch) { fields.push({ label: 'Amount', value: amtMatch[1].trim() }); amount = amtMatch[1].trim(); }
             fields.push({ label: 'Approved By', value: 'Nishita' });
-            note = 'Internal transfer for group companies. Approved by Nishita, you are in CC.';
+            const trfFrom = fromMatch ? fromMatch[1].trim().split('\n')[0] : '';
+            const trfTo = toMatch ? toMatch[1].trim().split('\n')[0] : '';
+            if (trfFrom && trfTo) {
+              note = `${trfFrom} → ${trfTo}. Approved by Nishita — for your awareness.`;
+            } else {
+              note = 'Internal group transfer. Approved by Nishita — for your awareness.';
+            }
 
           } else if (type === 'HR') {
             const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
             const body = stripQuotes(extractPlainText(full.data.payload)).slice(0, 500);
-            note = body.replace(/\r\n/g, ' ').trim().slice(0, 200);
+            // Extract the actual request from HR email
+            const hrLines = body.split('\n').filter(l => l.trim() && !l.startsWith('>') && !/^thanks|^regards|^dear/i.test(l.trim()));
+            note = hrLines.slice(0, 2).join(' ').replace(/\s+/g, ' ').trim().slice(0, 180);
             fields = [{ label: 'From', value: firstName(h.from) }];
 
           } else {
