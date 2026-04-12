@@ -296,7 +296,6 @@ async function loadInbox(){
     if(d.error)throw new Error(d.error);
     if(d.refreshedTokens)saveTokens(d.refreshedTokens);
     items=d.items.map(item=>({...item,type:detectType(item.subj),amt:extractAmt(item.subj),from:cleanFrom(item.from),date:formatDate(item.date),snip:decodeHtml(item.snippet)}));
-    if(ts)ts.textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
     renderAll();
     startPolling();
   }catch(e){
@@ -848,9 +847,7 @@ async function silentRefresh(){
     const newItems=d.items.map(item=>({...item,type:detectType(item.subj),amt:extractAmt(item.subj),from:cleanFrom(item.from),date:formatDate(item.date),snip:decodeHtml(item.snippet)}));
     const sig=newItems.map(i=>i.tid+i.read).join('|'),oldSig=items.map(i=>i.tid+i.read).join('|');
     if(sig!==oldSig){items=newItems;renderAll();}
-    if(ts){ts.textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});ts.style.opacity='1';}
   }catch(e){
-    if(ts)ts.style.opacity='1';
     if(e.message&&(e.message.includes('invalid_grant')||e.message.includes('401'))){saveTokens(null);localStorage.removeItem('aris_tokens');stopPolling();showAuth();}
   }finally{isPolling=false;}
 }
