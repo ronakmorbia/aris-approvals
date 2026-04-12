@@ -131,22 +131,58 @@ textarea:focus{border-color:#9E9B94}
 /* ── MOBILE / iPHONE ──────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
 
-  /* Header */
+  /* Header — fixed layout, no scroll */
   .hinner {
     padding: 0 1.25rem;
     height: 64px;
     min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
   }
+  .logo { flex-shrink: 0; }
   .logo img { height: 20px; }
   .ls { margin: 0 6px; }
   .lb { font-size: 12px; }
   .ts { display: none; }
-  .rbtn, .rpbtn {
-    height: 34px;
-    padding: 0 14px;
-    font-size: 12px;
+
+  /* Header right — only Refresh + Reports dropdown */
+  .ha { gap: 8px; flex-shrink: 0; overflow: visible; max-width: none; }
+  .ha .rbtn { height: 34px; padding: 0 16px; font-size: 12px; }
+
+  /* Hide individual report buttons on mobile */
+  .ha .rpbtn { display: none; }
+
+  /* Show Reports dropdown button instead */
+  .mob-reports-btn { display: inline-flex !important; }
+
+  /* Reports dropdown */
+  .mob-reports-wrap { position: relative; display: inline-block; }
+  .mob-reports-btn {
+    height: 34px; padding: 0 14px; border-radius: 999px;
+    background: transparent; color: #18171A; border: 0.5px solid #C8C5BC;
+    font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 400;
+    cursor: pointer; display: none; align-items: center; gap: 4px;
   }
-  .ha { gap: 6px; }
+  .mob-reports-btn.active { background: #18171A; color: #FFFFFF; border-color: #18171A; }
+  .mob-reports-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    background: #FFFFFF; border: 0.5px solid #E5E2DB; border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10); min-width: 160px; z-index: 200;
+    overflow: hidden;
+  }
+  .mob-reports-dropdown.open { display: block; }
+  .mob-reports-dropdown button {
+    display: block; width: 100%; text-align: left;
+    padding: 12px 16px; font-size: 13px; font-weight: 400;
+    color: #18171A; background: none; border: none;
+    font-family: 'Inter', sans-serif; cursor: pointer;
+    border-bottom: 0.5px solid #F5F4F0;
+  }
+  .mob-reports-dropdown button:last-child { border-bottom: none; }
+  .mob-reports-dropdown button:active { background: #F5F4F0; }
+  .mob-reports-dropdown button.active { font-weight: 600; color: #18171A; }
 
   /* Main padding */
   main { padding: 1rem 1rem; }
@@ -157,30 +193,18 @@ textarea:focus{border-color:#9E9B94}
   .ml { font-size: 8px; margin-bottom: 6px; }
   .mv { font-size: 17px; margin-bottom: 12px; }
   .mpill { font-size: 9px; padding: 2px 6px; min-width: 36px; }
-
-  /* KPI border separator for TD */
   .mc[style*="border-left"] { border-left: none !important; border-top: 2px solid #E5E2DB; }
 
-  /* Filters — horizontal scroll */
+  /* Filters — wrap into multiple rows */
   .filters {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
     gap: 6px;
-    padding-bottom: 6px;
     margin-bottom: 1rem;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
   }
-  .filters::-webkit-scrollbar { display: none; }
-  .chip {
-    flex-shrink: 0;
-    font-size: 12px;
-    padding: 5px 12px;
-    white-space: nowrap;
-  }
+  .chip { font-size: 12px; padding: 5px 12px; }
 
-  /* Cards — full width, larger touch targets */
+  /* Cards */
   .card { border-radius: 12px; margin-bottom: 8px; }
   .card-header { padding: 14px 14px; }
   .card-body { padding: 0 14px 14px; }
@@ -190,16 +214,6 @@ textarea:focus{border-color:#9E9B94}
   .rp table { font-size: 12px; }
   .rp th, .rp td { padding: 7px 6px; }
   .rp-hdr { flex-direction: column; gap: 10px; align-items: flex-start; }
-
-  /* Header right side scrolls on mobile */
-  .ha {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    flex-shrink: 0;
-    max-width: 65vw;
-  }
-  .ha::-webkit-scrollbar { display: none; }
 }
 
 /* Very small phones */
@@ -616,6 +630,33 @@ async function doAction(tid,action){
     const idx=items.findIndex(i=>i.tid===tid);if(idx>=0)items[idx].status='done';
     setTimeout(()=>{openTid=null;delete actionStatus[tid];renderAll();},1500);
   }catch(e){actionStatus[tid]={text:'Error: '+e.message,cls:'er'};renderCards();}
+}
+
+// ── MOBILE REPORTS DROPDOWN ───────────────────────────────────────────────
+function toggleMobReports() {
+  const dd = document.getElementById('mob-reports-dropdown');
+  const btn = document.getElementById('mob-reports-btn');
+  const isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open', !isOpen);
+  btn.classList.toggle('active', !isOpen);
+  // Close on outside click
+  if (!isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', closeMobReports, { once: true });
+    }, 10);
+  }
+}
+function closeMobReports() {
+  document.getElementById('mob-reports-dropdown')?.classList.remove('open');
+  document.getElementById('mob-reports-btn')?.classList.remove('active');
+}
+function mobSelectReport(type) {
+  closeMobReports();
+  // Update active state on mob dropdown items
+  ['payables','expenses','finance'].forEach(t => {
+    document.getElementById('mob-r-'+t)?.classList.toggle('active', t === type);
+  });
+  toggleReport(type);
 }
 
 boot();
