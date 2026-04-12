@@ -290,7 +290,7 @@ async function applyMobileUI() {
 }
 window.addEventListener('resize', applyMobileUI);
 
-function boot(){
+async function boot(){
   const params=new URLSearchParams(window.location.search);
   const tokensParam=params.get('tokens');
   if(tokensParam){try{const t=JSON.parse(decodeURIComponent(tokensParam));saveTokens(t);history.replaceState({},'','/');await loadInbox();return;}catch(e){}}
