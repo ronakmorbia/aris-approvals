@@ -15,7 +15,7 @@ header{background:#FFFFFF;border-bottom:0.5px solid #E5E2DB;position:sticky;top:
 .lm{width:30px;height:30px;background:#F5A500;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#18171A;font-family:'Inter',sans-serif}
 .ln{font-size:14px;font-weight:600}.ls{color:#9E9B94;margin:0 4px}.lb{font-size:13px;color:#5C5A55}
 .ha{display:flex;align-items:center;gap:12px}
-.ts{font-size:11px;color:#9E9B94;font-family:'Inter',sans-serif}
+
 .rbtn,.rpbtn{display:inline-flex;align-items:center;height:38px;padding:0 20px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:400;cursor:pointer;white-space:nowrap;transition:all .15s;box-sizing:border-box}
 .rbtn{background:#FFC107;color:#18171A;border:0.5px solid transparent}.rbtn:hover{opacity:.85}.rbtn:disabled{opacity:.5;pointer-events:none}
 .mob-reports-wrap{display:none}
@@ -157,7 +157,7 @@ textarea:focus{border-color:#9E9B94}
   .ha .rpbtn { display: none; }
 
   /* Reports dropdown */
-  .mob-reports-wrap { display: inline-block; }
+  .mob-reports-wrap { display: inline-block !important; }
   .mob-reports-wrap { position: relative; display: inline-block; }
   .mob-reports-btn {
     height: 34px; padding: 0 14px; border-radius: 999px;
@@ -233,7 +233,6 @@ textarea:focus{border-color:#9E9B94}
     <span class="ls">·</span><span class="lb">Approvals</span>
   </div>
   <div class="ha">
-    <span class="ts" id="ts"></span>
     <button class="rpbtn" id="rpbtn-payables" onclick="toggleReport('payables')">Payables</button>
     <button class="rpbtn" id="rpbtn-expenses" onclick="toggleReport('expenses')">Expenses</button>
     <button class="rpbtn" id="rpbtn-finance" onclick="toggleReport('finance')">Finance Cost</button>
@@ -297,7 +296,6 @@ async function loadInbox(){
     if(d.error)throw new Error(d.error);
     if(d.refreshedTokens)saveTokens(d.refreshedTokens);
     items=d.items.map(item=>({...item,type:detectType(item.subj),amt:extractAmt(item.subj),from:cleanFrom(item.from),date:formatDate(item.date),snip:decodeHtml(item.snippet)}));
-    const ts=document.getElementById('ts');
     if(ts)ts.textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
     renderAll();
     startPolling();
@@ -503,7 +501,7 @@ function renderAll(){
       <div class="mc"><div class="ml">Finance Cost</div><div class="mv" id="m-finance">—</div><span class="mpill" id="m-finance-p" ></span></div>
       <div class="mc"><div class="ml">Technology</div><div class="mv" id="m-tech">—</div><span class="mpill" id="m-tech-p" ></span></div>
       <div class="mc"><div class="ml">Total</div><div class="mv" id="m-total">—</div><span class="mpill" id="m-total-p" ></span></div>
-      <div class="mc" style="border-left:2px solid #E5E2DB"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" ></span></div>
+      <div class="mc"><div class="ml">Trade Deposit</div><div class="mv" id="m-td">—</div><span class="mpill" id="m-td-p" ></span></div>
     </div>
     <div class="filters">
       <div class="chip" data-f="all" onclick="setFilter('all')">All <span style="font-size:10px;opacity:.6">${items.length}</span></div>
@@ -844,7 +842,6 @@ function exportReport() {
 const POLL_INTERVAL=90*1000;let pollTimer=null,isPolling=false;
 async function silentRefresh(){
   if(!tokens||isPolling)return;isPolling=true;
-  const ts=document.getElementById('ts');if(ts)ts.style.opacity='0.4';
   try{
     const r=await fetch('/api/gmail?action=inbox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tokens})});
     const d=await r.json();if(d.error)throw new Error(d.error);if(d.refreshedTokens)saveTokens(d.refreshedTokens);
