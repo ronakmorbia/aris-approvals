@@ -486,10 +486,11 @@ export default async function handler(req, res) {
 
       // EXP done items need full thread processing to get Rohan's category breakdown for KPIs
       // All other done items just get metadata (fast path)
-      const pending = valid.filter(m => m.status !== 'done');
-      const expDone = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') === 'EXP');
-      const tdDone = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') === 'TD');
-      const done = valid.filter(m => m.status === 'done' && detectType(m.h.subject||'') !== 'EXP' && detectType(m.h.subject||'') !== 'TD');
+      // Process ALL items through processMsg — ensures amount, fields, rows, note on every card
+      const pending = valid; // process everything
+      const expDone = [];
+      const tdDone = [];
+      const done = [];
 
       const processMsg = async (meta) => {
         const { msg, h, status, isUnread, isCc, type, snippet } = meta;
@@ -855,6 +856,10 @@ export default async function handler(req, res) {
 
         smartTitleStr = smartTitleStr || smartTitle(type, subj, h.from, '', rows);
         if (meta._absorbedApproval && !approvalPill) approvalPill = meta._absorbedApproval;
+        // Ensure done items always have a note
+        if (status === 'done' && !note) {
+          note = amount ? `Approved — ${amount}.` : 'Approved.';
+        }
         return {
           tid: msg.threadId, mid: msg.id, cat: msg.cat, subj, type,
           title: smartTitleStr, amount, risk, fields, rows, note,
@@ -863,19 +868,9 @@ export default async function handler(req, res) {
         };
       };
 
-      const pendingItems = await Promise.all([...pending, ...expDone, ...tdDone].slice(0, 30).map(processMsg));
-
-      const doneItems = done.map(({ msg, h, status, isUnread, isCc }) => ({
-        tid: msg.threadId, mid: msg.id, cat: msg.cat,
-        subj: h.subject || '', type: detectType(h.subject || ''),
-        title: smartTitle(detectType(h.subject||''), h.subject||'', h.from||'', '', []),
-        amount: extractAmtFromSubject(h.subject || ''),
-        risk: '', fields: [], rows: [], note: '',
-        from: h.from || '', date: h.date || '', to: h.to || '', cc: h.cc || '',
-        isUnread: false, isCc, status: 'done', rohanApproved: false, approvalPill: ''
-      }));
-
-      const items = [...pendingItems.filter(Boolean), ...doneItems];
+      // Process all items (limit 40 to avoid timeout)
+      const pendingItems = await Promise.all(pending.slice(0, 40).map(processMsg));
+      const items = pendingItems.filter(Boolean);
       return res.json({ items, refreshedTokens: oauth2Client.credentials });
 
     } catch (e) { return res.status(500).json({ error: e.message }); }
