@@ -343,6 +343,15 @@ function showAuth(){
       <div class="auth-note">You'll only need to do this once.</div>
     </div>`;}
 
+async function startAuth(){
+  try {
+    const r = await fetch('/api/gmail?action=auth-url');
+    const d = await r.json();
+    if (d.url) window.location.href = d.url;
+    else alert('Could not get auth URL: ' + (d.error||'unknown'));
+  } catch(e) { alert('Auth error: ' + e.message); }
+}
+
 // ── ROHAN VIEW ────────────────────────────────────────────────────────────────
 const ROHAN_EMAILS = ['rohan@aris.in','rohan.bhatia@aris.in','rohan@arisinfra.com']; // extend as needed
 let isRohanView = false;
