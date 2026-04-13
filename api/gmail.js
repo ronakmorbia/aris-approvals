@@ -368,7 +368,12 @@ export default async function handler(req, res) {
 
   if (action === 'auth-callback') {
     try {
-      const { tokens } = await oauth2Client.getToken(req.query.code);
+      const cleanClient = new google.auth.OAuth2(
+        (process.env.GMAIL_CLIENT_ID||'').trim(),
+        (process.env.GMAIL_CLIENT_SECRET||'').trim(),
+        (process.env.GMAIL_REDIRECT_URI||'').trim()
+      );
+      const { tokens } = await cleanClient.getToken(req.query.code);
       res.setHeader('Location', `/?tokens=${encodeURIComponent(JSON.stringify(tokens))}`);
       return res.status(302).end();
     } catch (e) { return res.status(500).json({ error: e.message }); }
