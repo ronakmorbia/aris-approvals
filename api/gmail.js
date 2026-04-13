@@ -427,7 +427,43 @@ export default async function handler(req, res) {
         } catch { return null; }
       }));
 
-      const valid = metaList.filter(Boolean);
+      let valid = metaList.filter(Boolean);
+
+      // Deduplicate HR cards where Gmail broke the thread into separate threadIds
+      // Strategy: normalize subject (strip Re:/RE: prefixes), keep oldest per subject,
+      // and scan newer duplicate threads for approval signals to surface as pills
+      {
+        const hrBySubj = new Map(); // normSubj → meta (oldest/primary)
+        const hrToRemove = new Set();
+
+        for (const m of valid) {
+          if (m.type !== 'HR') continue;
+          const normSubj = (m.h.subject || '')
+            .replace(/^(RE:|Re:|Fwd:|FWD:)\s*/gi, '')
+            .trim().toLowerCase();
+          const mDate = new Date(m.h.date || 0).getTime();
+
+          if (!hrBySubj.has(normSubj)) {
+            hrBySubj.set(normSubj, m);
+          } else {
+            const primary = hrBySubj.get(normSubj);
+            const pDate = new Date(primary.h.date || 0).getTime();
+            // Mark the newer one for removal, but check it for approvals
+            const [older, newer] = mDate < pDate ? [m, primary] : [primary, m];
+            // If the newer is just an approval reply (short snippet), absorb it
+            const snip = (newer.snippet || '').toLowerCase();
+            if (/^(please proceed|approved|okay|ok)/i.test(snip.trim())) {
+              // Tag the older (primary) with approval info
+              const fromName = firstName(newer.h.from || '');
+              older._absorbedApproval = fromName ? `${fromName} Approved` : 'Approved';
+            }
+            hrBySubj.set(normSubj, older);
+            hrToRemove.add(newer.msg.threadId);
+          }
+        }
+        valid = valid.filter(m => !hrToRemove.has(m.msg.threadId));
+      }
+
       // EXP done items need full thread processing to get Rohan's category breakdown for KPIs
       // All other done items just get metadata (fast path)
       const pending = valid.filter(m => m.status !== 'done');
@@ -675,50 +711,52 @@ export default async function handler(req, res) {
             }
 
           } else if (type === 'HR') {
-            const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
-            const body = stripQuotes(extractPlainText(full.data.payload));
+            // Fetch the full thread — gets all messages including any broken-thread replies
+            const thread = await gmail.users.threads.get({ userId: 'me', id: msg.threadId, format: 'full' });
+            const allMsgs = thread.data.messages || [];
+
+            // Get the earliest message body (original request)
+            const originalMsg = allMsgs[0];
+            const body = stripQuotes(extractPlainText(originalMsg?.payload || {}));
+
+            // Check if anyone has approved in any message in this thread
+            for (const tm of allMsgs) {
+              const fromHdr = (tm.payload?.headers || []).find(hh => hh.name === 'From');
+              const tmFrom = (fromHdr?.value || '').toLowerCase();
+              const tmBody = extractPlainText(tm.payload || {}).trim();
+              const firstLine = tmBody.split('\n')[0].trim();
+              if (/^(please proceed|approved|okay|ok|done)/i.test(firstLine)) {
+                approvalPill = firstName(fromHdr?.value || '') + ' Approved';
+              }
+            }
 
             // Extract amount
-            const amtMatch = body.match(/total payable amount.*?Rs\.?\s*\*?([\d,]+)\*?/i)
+            const amtMatch = body.match(/total payable amount[^\d]*([\d,]+)/i)
               || body.match(/Rs\.?\s*\*?([\d,]+)\*?\s*\/\-/i);
             if (amtMatch) amount = fmtAmt(parseInt(amtMatch[1].replace(/,/g,'')));
 
-            // Build smart note — skip salutation lines, take the actual request
-            const hrLines = body.split('\n')
-              .filter(l => {
-                const t = l.trim();
-                return t.length > 10
-                  && !t.startsWith('>')
-                  && !/^(hi |dear |regards|thanks|--)/i.test(t)
-                  && !/^(Arisinfra|Art Guild|L\.B\.S|Mumbai|Web:|Mob:|Unit)/i.test(t);
-              });
+            // Smart title — use what the email is about, not subject
+            const titleMatch = body.match(/Employee Expense\s+([A-Za-z]+-?\d*)/i)
+              || body.match(/Expense report\s*[-–]?\s*([A-Za-z]+-?\d*)/i)
+              || body.match(/approval for\s+(.{5,40}?)\s*\.?\s*(?:The|Please|Rs)/i);
+            smartTitleStr = titleMatch
+              ? 'Employee Expenses — ' + titleMatch[1].trim()
+              : subj.replace(/^(RE:|Re:|HR-APP:|APP-HR:)\s*/gi, '').trim().slice(0, 50);
 
-            // Find the key request line
-            const requestLine = hrLines.find(l => /please|approval|process|payable|kindly/i.test(l));
-            const totalLine = hrLines.find(l => /total payable|payable amount/i.test(l));
-
-            // Build category breakdown from body
-            const catRows = [];
-            const catRegex = /^(Fuel|Food|Local Conveyance|Driver|Repairs|Printing|Courier|Work Support|Flight|Accommodation|Mobile|Fastag).*?(\d[\d,]+)/gm;
-            let cm;
-            while ((cm = catRegex.exec(body)) !== null) {
-              catRows.push({ name: cm[1].trim(), amount: fmtAmt(parseInt(cm[2].replace(/,/g,''))) });
-            }
-
-            // Department breakdown
+            // Department breakdown from body
             const deptRows = [];
-            const deptRegex = /^(Sales and Marketing|Customer Relation|Administration|Operations|Accounts|Legal|Human Resource|Finance|Procurement|Tech).*?(\d[\d,]+)/gm;
+            const deptRegex = /^(Sales and Marketing|Customer Relation|Administration|Operations|Accounts Operations|Legal|Human Resource|Finance|Procurement|Tech)\s+(\d[\d,]+)/gm;
             let dm;
             while ((dm = deptRegex.exec(body)) !== null) {
               deptRows.push({ label: dm[1].trim().split(' ').slice(0,2).join(' '), value: fmtAmt(parseInt(dm[2].replace(/,/g,''))) });
             }
 
-            note = requestLine
-              ? requestLine.replace(/\s+/g,' ').trim().slice(0,180)
-              : (totalLine || 'Employee expense reimbursement request for approval.');
+            note = amount
+              ? `Employee reimbursements for ${titleMatch?.[1] || 'the month'} — ${amount} total. Awaiting your approval.`
+              : 'Employee expense reimbursement request. Awaiting your approval.';
 
             fields = [
-              { label: 'From', value: firstName(h.from) },
+              { label: 'Requested By', value: firstName(h.from) },
               ...(amount ? [{ label: 'Total', value: amount }] : []),
               ...deptRows.slice(0, 5)
             ];
@@ -742,7 +780,8 @@ export default async function handler(req, res) {
           if (!fields.length) fields = [{ label: 'From', value: firstName(h.from) }];
         }
 
-        smartTitleStr = smartTitle(type, subj, h.from, '', rows);
+        smartTitleStr = smartTitleStr || smartTitle(type, subj, h.from, '', rows);
+        if (meta._absorbedApproval && !approvalPill) approvalPill = meta._absorbedApproval;
         return {
           tid: msg.threadId, mid: msg.id, cat: msg.cat, subj, type,
           title: smartTitleStr, amount, risk, fields, rows, note,
