@@ -787,9 +787,8 @@ export default async function handler(req, res) {
               if (m2) {
                 const amt = parseInt(m2[1].replace(/,/g,''));
                 if (amt > 0) {
-                  const cat = /fuel|conveyance|driver|fastag|flight|train/i.test(name) ? 'Travel'
-                    : /food|accommodation/i.test(name) ? 'Food & Stay'
-                    : 'Expenses';
+                  // Category is always one of the 5 accounting categories
+                const cat = categorise(name, '', 'EXP');
                   hrRows.push({ name, amount: fmtAmt(amt), purpose: derivePurpose(name), category: cat });
                 }
               }
