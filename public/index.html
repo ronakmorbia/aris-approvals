@@ -923,9 +923,9 @@ function renderCard(item){
   if(item.fields&&item.fields.length&&item.rows&&item.rows.length)panelContent+=`<div class="sep"></div>`;
   if(item.rows&&item.rows.length){
     const catColor={'Payables':'#3C3489','Salary':'#27500A','Expenses':'#0C447C','Finance Cost':'#791F1F'};
-    const catBg={'Payables':'#EEEDFE','Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FCEBEB'};
+    const catBg={'Payables':'#EEEDFE','Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FCEBEB','Technology':'#E6F1FB','Travel':'#FEF3C7','Food & Stay':'#F0FDF4'};
     panelContent+=`<table class="tbl">
-      <thead><tr><th>${item.type==='EXP'?'Expense Head':item.type==='VPAY'?'Vendor':'Name'}</th>${item.type==='EXP'?'<th class="exp-purpose">Purpose</th>':''}<th>Category</th><th>Amount</th></tr></thead>
+      <thead><tr><th>${item.type==='EXP'||item.type==='HR'?'Expense Head':item.type==='VPAY'?'Vendor':'Name'}</th>${item.type==='EXP'?'<th class="exp-purpose">Purpose</th>':''}<th>Category</th><th>Amount</th></tr></thead>
       <tbody>${item.rows.map(r=>`<tr><td>${r.name}</td>${item.type==='EXP'?`<td class="exp-purpose">${r.purpose||'—'}</td>`:''}<td><span style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:${catBg[r.category]||'#F5F4F0'};color:${catColor[r.category]||'#5C5A55'}">${r.category}</span></td><td>${r.amount}</td></tr>`).join('')}
       ${item.amount?`<tr class="tbl-tot"><td colspan="${item.type==='EXP'?3:2}">Total</td><td>${item.amount}</td></tr>`:''}</tbody></table>`;
   }

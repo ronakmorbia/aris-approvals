@@ -743,23 +743,67 @@ export default async function handler(req, res) {
               ? 'Employee Expenses — ' + titleMatch[1].trim()
               : subj.replace(/^(RE:|Re:|HR-APP:|APP-HR:)\s*/gi, '').trim().slice(0, 50);
 
-            // Department breakdown from body
-            const deptRows = [];
-            const deptRegex = /^(Sales and Marketing|Customer Relation|Administration|Operations|Accounts Operations|Legal|Human Resource|Finance|Procurement|Tech)\s+(\d[\d,]+)/gm;
-            let dm;
-            while ((dm = deptRegex.exec(body)) !== null) {
-              deptRows.push({ label: dm[1].trim().split(' ').slice(0,2).join(' '), value: fmtAmt(parseInt(dm[2].replace(/,/g,''))) });
+            // Parse expense category rows — mirrors EXP card style
+            const hrRows = [];
+            const expCats = [
+              ['Fuel',                /^Fuel\s+([\d,]+)/m],
+              ['Food Expense',        /^Food Expense\s+([\d,]+)/m],
+              ['Local Conveyance',    /^Local Conveyance\s+([\d,]+)/m],
+              ['Driver Allowance',    /^Driver Allowance\s+([\d,]+)/m],
+              ['Repairs & Maintenance', /^Repairs & Maintenance\s+([\d,]+)/m],
+              ['Printing & Stationary', /^Printing & Stationary\s+([\d,]+)/m],
+              ['Courier',             /^Courier\s+([\d,]+)/m],
+              ['Work Support',        /^Work Support Expenses\s+([\d,]+)/m],
+              ['Flight & Train',      /^Flight & Train Ticket\s+([\d,]+)/m],
+              ['Accommodation',       /^Accommodation\s+([\d,]+)/m],
+              ['Mobile Reimb.',       /^Mobile Reimbursement\s+([\d,]+)/m],
+              ['Fastag',              /^Fastag\s+([\d,]+)/m],
+            ];
+            for (const [name, re] of expCats) {
+              const m2 = body.match(re);
+              if (m2) {
+                const amt = parseInt(m2[1].replace(/,/g,''));
+                if (amt > 0) {
+                  const cat = /fuel|conveyance|driver|fastag|flight|train/i.test(name) ? 'Travel'
+                    : /food|accommodation/i.test(name) ? 'Food & Stay'
+                    : 'Expenses';
+                  hrRows.push({ name, amount: fmtAmt(amt), purpose: '', category: cat });
+                }
+              }
             }
 
-            note = amount
-              ? `Employee reimbursements for ${titleMatch?.[1] || 'the month'} — ${amount} total. Awaiting your approval.`
-              : 'Employee expense reimbursement request. Awaiting your approval.';
+            // Department breakdown as fields
+            const deptRows = [];
+            const deptPairs = [
+              ['Sales & Mktg',     /Sales and Marketing\s+([\d,]+)/],
+              ['CRM',              /Customer Relation[^\n]+\s+([\d,]+)/],
+              ['Admin',            /Administration\s+([\d,]+)/],
+              ['Operations',       /^Operations\s+([\d,]+)/m],
+              ['Accounts Ops',     /Accounts Operations\s+([\d,]+)/],
+              ['Legal',            /Legal & Compliance\s+([\d,]+)/],
+              ['HR',               /Human Resource\s+([\d,]+)/],
+              ['Finance',          /Finance & Accounts\s+([\d,]+)/],
+              ['Tech',             /Tech & Engineering\s+([\d,]+)/],
+            ];
+            for (const [label, re] of deptPairs) {
+              const dm = body.match(re);
+              if (dm) {
+                const amt = parseInt(dm[1].replace(/,/g,''));
+                if (amt > 0) deptRows.push({ label, value: fmtAmt(amt) });
+              }
+            }
+
+            rows = hrRows; // show in expanded card like EXP
 
             fields = [
               { label: 'Requested By', value: firstName(h.from) },
               ...(amount ? [{ label: 'Total', value: amount }] : []),
-              ...deptRows.slice(0, 5)
+              ...deptRows.slice(0, 5),
             ];
+
+            note = amount
+              ? `Employee reimbursements for ${titleMatch?.[1] || 'the month'} — ${amount} total. Awaiting your approval.`
+              : 'Employee expense reimbursement request. Awaiting your approval.';
 
           } else {
             note = snippet.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
