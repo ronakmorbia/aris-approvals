@@ -350,7 +350,16 @@ export default async function handler(req, res) {
   const { action } = req.query;
 
   if (action === 'auth-url') {
-    const url = oauth2Client.generateAuthUrl({
+    // Debug: log env vars (lengths only, not values) to help diagnose auth issues
+    const clientId = (process.env.GMAIL_CLIENT_ID||'').trim();
+    const clientSecret = (process.env.GMAIL_CLIENT_SECRET||'').trim();
+    const redirectUri = (process.env.GMAIL_REDIRECT_URI||'').trim();
+    if (!clientId || !clientSecret || !redirectUri) {
+      return res.status(500).json({ error: `Missing env vars — CLIENT_ID:${clientId.length} CLIENT_SECRET:${clientSecret.length} REDIRECT_URI:${redirectUri}` });
+    }
+    // Recreate client with trimmed values to avoid whitespace issues
+    const cleanClient = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    const url = cleanClient.generateAuthUrl({
       access_type: 'offline', prompt: 'consent',
       scope: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.modify']
     });
