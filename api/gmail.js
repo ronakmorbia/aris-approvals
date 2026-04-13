@@ -275,6 +275,26 @@ function shortName(s) {
   return s.replace(/\s+(private limited|pvt\.?\s*ltd\.?|limited|llp|solutions private limited)$/i, '').trim();
 }
 
+
+// Derive human-readable purpose/nature from expense name
+function derivePurpose(name) {
+  const n = (name || '').toLowerCase();
+  if (/fuel|petrol|diesel|fastag|toll|parking|local conveyance|driver/i.test(name)) return 'Travel';
+  if (/flight|train|ticket|accommodation|hotel|stay/i.test(name)) return 'Travel & Stay';
+  if (/food|meal|canteen|restaurant|catering|lunch|dinner|snack/i.test(name)) return 'Food';
+  if (/legal|arbitration|court|advocate|solicitor|law firm|vesta|s&t/i.test(name)) return 'Legal';
+  if (/aws|azure|google cloud|techmagify|sazs|slack|dropbox|figma|openai|anthropic|atlassian|rebrandly|gupshup|cursor|relic|creativeit|software|saas/i.test(name)) return 'Software';
+  if (/salary|payroll|wages|stipend|staff|hr pay|reimbursement/i.test(name)) return 'Payroll';
+  if (/ncd|interest|factoring|texterity|sunx.*fee|processing fee|bank charge/i.test(name)) return 'Finance';
+  if (/insurance|tata aig|rubix/i.test(name)) return 'Insurance';
+  if (/advisory|consultant|rbsa|thanawala|manish bohra|actuar/i.test(name)) return 'Advisory';
+  if (/rent|utility|housekeeping|stationery|printing|courier|office|admin/i.test(name)) return 'Admin';
+  if (/mobile|airtel|phone|broadband|recharge/i.test(name)) return 'Telecom';
+  if (/repair|maintenance|it support/i.test(name)) return 'Maintenance';
+  if (/corp cc|credit card/i.test(name)) return 'Corp Card';
+  return 'Other';
+}
+
 // Generate smart human-readable title from email data
 function smartTitle(type, subj, from, body, rows) {
   const d = subj.match(/(\d{2}-\d{2}-\d{4})/);
@@ -767,7 +787,7 @@ export default async function handler(req, res) {
                   const cat = /fuel|conveyance|driver|fastag|flight|train/i.test(name) ? 'Travel'
                     : /food|accommodation/i.test(name) ? 'Food & Stay'
                     : 'Expenses';
-                  hrRows.push({ name, amount: fmtAmt(amt), purpose: '', category: cat });
+                  hrRows.push({ name, amount: fmtAmt(amt), purpose: derivePurpose(name), category: cat });
                 }
               }
             }
@@ -801,9 +821,16 @@ export default async function handler(req, res) {
               ...deptRows.slice(0, 5),
             ];
 
-            note = amount
-              ? `Employee reimbursements for ${titleMatch?.[1] || 'the month'} — ${amount} total. Awaiting your approval.`
-              : 'Employee expense reimbursement request. Awaiting your approval.';
+            const period = titleMatch?.[1] || 'the month';
+            if (approvalPill === 'Amount Approved') {
+              note = amount
+                ? `Rohan has approved ${amount} for ${period}. Expense list pre-approved — awaiting your sign-off.`
+                : `Rohan has approved expenses for ${period}. Awaiting your sign-off.`;
+            } else {
+              note = amount
+                ? `Employee reimbursements for ${period} — ${amount} total. Rohan's approval pending before you can approve.`
+                : `Employee expense reimbursement request for ${period}. Rohan's approval pending.`;
+            }
 
           } else {
             note = snippet.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
