@@ -586,10 +586,29 @@ export default async function handler(req, res) {
             fields.push({ label: 'Approved By', value: 'Nishita' });
             const trfFrom = fromMatch ? fromMatch[1].trim().split('\n')[0] : '';
             const trfTo = toMatch ? toMatch[1].trim().split('\n')[0] : '';
+            // Abbreviation map for group entities
+            const abbr = (name) => {
+              const n = name.toLowerCase();
+              if (/arisinfra solutions limited|arisinfra solutions ltd|\baris\b/i.test(name)) return 'ARIS';
+              if (/arisinfra trading/i.test(name)) return 'ATPL';
+              if (/buildmex/i.test(name)) return 'BM';
+              if (/whiteroots/i.test(name)) return 'WR';
+              if (/arisinfra constructions/i.test(name)) return 'ACMPL';
+              if (/natureresidences.*realtors/i.test(name)) return 'NRPL';
+              if (/natureresidences/i.test(name)) return 'NRDPL';
+              if (/unitern/i.test(name)) return 'Unitern';
+              // Strip common suffixes
+              return name.replace(/\s*(private limited|pvt\.?\s*ltd\.?|limited|llp)\s*$/i, '').trim();
+            };
+            const amtStr = amtMatch ? amtMatch[1].trim() : '';
             if (trfFrom && trfTo) {
-              note = `${trfFrom} → ${trfTo}. Approved by Nishita — for your awareness.`;
+              const from = abbr(trfFrom);
+              const to = abbr(trfTo);
+              note = amtStr
+                ? `${amtStr} moved from ${from} to ${to}. Nishita's done — just so you know.`
+                : `Funds moved from ${from} to ${to}. Nishita's done — just so you know.`;
             } else {
-              note = 'Internal group transfer. Approved by Nishita — for your awareness.';
+              note = 'Internal group transfer. Nishita's handled it — for your awareness.';
             }
 
           } else if (type === 'HR') {
