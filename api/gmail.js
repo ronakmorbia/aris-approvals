@@ -486,11 +486,14 @@ export default async function handler(req, res) {
 
       // EXP done items need full thread processing to get Rohan's category breakdown for KPIs
       // All other done items just get metadata (fast path)
-      // Process ALL items through processMsg — ensures amount, fields, rows, note on every card
-      const pending = valid; // process everything
-      const expDone = [];
-      const tdDone = [];
-      const done = [];
+      // Split: pending/fyi first (full processing), done items (lighter processing)
+      const pending = valid.filter(m => m.status !== 'done');
+      const doneAll = valid.filter(m => m.status === 'done');
+      // EXP and TD done need full thread/body for amounts and rows
+      const expDone = doneAll.filter(m => m.type === 'EXP');
+      const tdDone = doneAll.filter(m => m.type === 'TD');
+      // Other done items just need a quick body fetch for amount/note
+      const doneLite = doneAll.filter(m => m.type !== 'EXP' && m.type !== 'TD');
 
       const processMsg = async (meta) => {
         const { msg, h, status, isUnread, isCc, type, snippet } = meta;
@@ -856,6 +859,19 @@ export default async function handler(req, res) {
 
         smartTitleStr = smartTitleStr || smartTitle(type, subj, h.from, '', rows);
         if (meta._absorbedApproval && !approvalPill) approvalPill = meta._absorbedApproval;
+
+        // Universal amount fallback — try snippet if still empty
+        if (!amount) {
+          const snipAmt = snippet.match(/Rs\.?\s*\*?([\d,]+)\*?/i)
+            || snippet.match(/([\d,]+)\s*\/-/i);
+          if (snipAmt) {
+            const n = parseInt(snipAmt[1].replace(/,/g,''));
+            if (n > 1000) amount = fmtAmt(n);
+          }
+        }
+        // Last resort — extract from subject
+        if (!amount) amount = extractAmtFromSubject(subj);
+
         // Ensure done items always have a note
         if (status === 'done' && !note) {
           note = amount ? `Approved — ${amount}.` : 'Approved.';
@@ -868,9 +884,14 @@ export default async function handler(req, res) {
         };
       };
 
-      // Process all items (limit 40 to avoid timeout)
-      const pendingItems = await Promise.all(pending.slice(0, 40).map(processMsg));
-      const items = pendingItems.filter(Boolean);
+      // Process in parallel with priority — pending first, then done
+      const [pendingItems, expDoneItems, tdDoneItems, liteItems] = await Promise.all([
+        Promise.all(pending.slice(0, 25).map(processMsg)),
+        Promise.all(expDone.slice(0, 8).map(processMsg)),
+        Promise.all(tdDone.slice(0, 8).map(processMsg)),
+        Promise.all(doneLite.slice(0, 15).map(processMsg)),
+      ]);
+      const items = [...pendingItems, ...expDoneItems, ...tdDoneItems, ...liteItems].filter(Boolean);
       return res.json({ items, refreshedTokens: oauth2Client.credentials });
 
     } catch (e) { return res.status(500).json({ error: e.message }); }
