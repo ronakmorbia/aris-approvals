@@ -346,10 +346,12 @@ function showAuth(){
 async function startAuth(){
   try {
     const r = await fetch('/api/gmail?action=auth-url');
-    const d = await r.json();
+    const text = await r.text();
+    let d;
+    try { d = JSON.parse(text); } catch(e) { alert('Response: ' + text.slice(0,300)); return; }
     if (d.url) window.location.href = d.url;
-    else alert('Could not get auth URL: ' + (d.error||'unknown'));
-  } catch(e) { alert('Auth error: ' + e.message); }
+    else alert('Error: ' + (d.error || JSON.stringify(d)));
+  } catch(e) { alert('Fetch failed: ' + e.message + ' — ' + e.stack); }
 }
 
 // ── ROHAN VIEW ────────────────────────────────────────────────────────────────
