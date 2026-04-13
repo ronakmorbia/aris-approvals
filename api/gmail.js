@@ -405,8 +405,10 @@ export default async function handler(req, res) {
         ...(taxRes.data.messages || []).map(m => ({ ...m, cat: 'Tax' })),
       ];
 
+      // Dedup by threadId — keep the OLDEST message (first in thread = original request)
+      // Gmail returns messages in reverse chronological order, so last = oldest
       const seen = new Map();
-      for (const m of all) { if (!seen.has(m.threadId)) seen.set(m.threadId, m); }
+      for (const m of [...all].reverse()) { seen.set(m.threadId, m); }
       const msgList = [...seen.values()];
 
       // Step 1: metadata for all in parallel
@@ -472,13 +474,30 @@ export default async function handler(req, res) {
             const rohanMsg = messages.find(m =>
               (m.payload?.headers || []).find(hh => hh.name === 'From' && hh.value.toLowerCase().includes('rohan'))
             );
+            // Check if Ronak has already approved
+            const ronakApprovalMsg = messages.find(m => {
+              const fromHdr = (m.payload?.headers || []).find(hh => hh.name === 'From');
+              const from = (fromHdr?.value || '').toLowerCase();
+              if (!from.includes('ronak')) return false;
+              const body = extractPlainText(m.payload || {});
+              return /^approved|^okay|^ok|^done/i.test(body.trim());
+            });
+
+            if (ronakApprovalMsg) approvalPill = 'Approved';
+
             if (rohanMsg) {
               const rohanBody = extractPlainText(rohanMsg.payload);
               rows = parseExpenseRows(rohanBody);
               rohanApproved = true;
-              note = `${rows.length} expense items pre-approved by Rohan. Review breakdown and approve.`;
+              if (approvalPill === 'Approved') {
+                note = `Approved by you. ${rows.length} expense items, pre-approved by Rohan.`;
+              } else {
+                note = `${rows.length} expense items pre-approved by Rohan. Review breakdown and approve.`;
+              }
             } else {
-              note = 'Pre-approved by Rohan. Full list in attached Excel. Awaiting your sign-off.';
+              note = approvalPill === 'Approved'
+                ? 'Approved by you. Full expense list in attached Excel.'
+                : 'Pre-approved by Rohan. Full list in attached Excel. Awaiting your sign-off.';
               rohanApproved = true;
             }
 
@@ -595,39 +614,64 @@ export default async function handler(req, res) {
             if (snipLow.includes('approved') && status === 'fyi') approvalPill = 'Transfer Approved';
             const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
             const body = extractPlainText(full.data.payload);
-            // Extract transfer details
-            const fromMatch = body.match(/From:\s*(.+?)(?:\r?\n|To:)/i);
-            const toMatch = body.match(/To:\s*(.+?)(?:\r?\n|Amount:)/i);
-            const amtMatch = body.match(/Amount:\s*(.+?)(?:\r?\n|Transfer)/i);
-            if (fromMatch) fields.push({ label: 'From', value: fromMatch[1].trim() });
-            if (toMatch) fields.push({ label: 'To', value: toMatch[1].trim() });
-            if (amtMatch) { fields.push({ label: 'Amount', value: amtMatch[1].trim() }); amount = amtMatch[1].trim(); }
+
+            // Parse ALL transfer blocks — repeating From/To/Amount pattern
+            const transfers = [];
+            let totalAmt = 0;
+            // Split into paragraphs and find each transfer block
+            const lines = body.split(/\r?\n/);
+            let cur = {};
+            for (const line of lines) {
+              const l = line.trim();
+              const fromM = l.match(/^From:\s*(.+)/i);
+              const toM   = l.match(/^To:\s*(.+)/i);
+              const amtM  = l.match(/^Amount:\s*(.+)/i);
+              if (fromM) { cur.from = fromM[1].trim(); }
+              if (toM)   { cur.to   = toM[1].trim(); }
+              if (amtM)  {
+                cur.amtRaw = amtM[1].trim();
+                // Parse amount value
+                const cr  = cur.amtRaw.match(/(\d+\.?\d*)\s*cr/i);
+                const lac = cur.amtRaw.match(/(\d+\.?\d*)\s*lac/i);
+                const lak = cur.amtRaw.match(/(\d+\.?\d*)\s*l\b/i);
+                const num = cr  ? parseFloat(cr[1])  * 10000000
+                          : lac ? parseFloat(lac[1]) * 100000
+                          : lak ? parseFloat(lak[1]) * 100000
+                          : parseFloat(cur.amtRaw.replace(/[₹,]/g,'')) || 0;
+                cur.amtNum = num;
+                // Once we have all three, save transfer
+                if (cur.from && cur.to) {
+                  totalAmt += num;
+                  transfers.push({
+                    from: shortName(cur.from),
+                    to:   shortName(cur.to),
+                    amt:  fmtAmt(num),
+                    amtRaw: cur.amtRaw
+                  });
+                  cur = {};
+                }
+              }
+            }
+
+            amount = totalAmt > 0 ? fmtAmt(totalAmt) : extractAmtFromSubject(subj);
+
+            // Fields — one row per transfer
+            if (transfers.length > 0) {
+              fields = transfers.map((t, i) => ({
+                label: transfers.length > 1 ? `Transfer ${i + 1}` : 'Transfer',
+                value: `${t.from} → ${t.to} · ${t.amt}`
+              }));
+            }
             fields.push({ label: 'Approved By', value: 'Nishita' });
-            const trfFrom = fromMatch ? fromMatch[1].trim().split('\n')[0] : '';
-            const trfTo = toMatch ? toMatch[1].trim().split('\n')[0] : '';
-            // Abbreviation map for group entities
-            const abbr = (name) => {
-              const n = name.toLowerCase();
-              if (/arisinfra solutions limited|arisinfra solutions ltd|\baris\b/i.test(name)) return 'ARIS';
-              if (/arisinfra trading/i.test(name)) return 'ATPL';
-              if (/buildmex/i.test(name)) return 'BM';
-              if (/whiteroots/i.test(name)) return 'WR';
-              if (/arisinfra constructions/i.test(name)) return 'ACMPL';
-              if (/natureresidences.*realtors/i.test(name)) return 'NRPL';
-              if (/natureresidences/i.test(name)) return 'NRDPL';
-              if (/unitern/i.test(name)) return 'Unitern';
-              // Strip common suffixes
-              return name.replace(/\s*(private limited|pvt\.?\s*ltd\.?|limited|llp)\s*$/i, '').trim();
-            };
-            const amtStr = amtMatch ? amtMatch[1].trim() : '';
-            if (trfFrom && trfTo) {
-              const from = abbr(trfFrom);
-              const to = abbr(trfTo);
-              note = amtStr
-                ? `${amtStr} moved from ${from} to ${to}. Nishita's done — just so you know.`
-                : `Funds moved from ${from} to ${to}. Nishita's done — just so you know.`;
+
+            // Smart note
+            if (transfers.length === 1) {
+              note = `${transfers[0].from} → ${transfers[0].to} (${transfers[0].amt}). Approved by Nishita — for your awareness.`;
+            } else if (transfers.length > 1) {
+              const summary = transfers.map(t => `${t.to} ${t.amt}`).join(', ');
+              note = `${transfers.length} transfers totalling ${amount} — ${summary}. Approved by Nishita.`;
             } else {
-              note = 'Internal group transfer. Nishita has handled it — for your awareness.';
+              note = 'Internal group transfer. Approved by Nishita — for your awareness.';
             }
 
           } else if (type === 'HR') {
