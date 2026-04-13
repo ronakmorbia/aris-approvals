@@ -426,26 +426,19 @@ async function generateRohanAI(mid) {
   const istech = /tech|aws|cloud|saas|software|subscription|figma|cursor|anthropic|openai|atlassian|slack|notion|zoom|datadog/i.test(exp.subj + ' ' + (exp.dept||'') + ' ' + (exp.body||'').slice(0,200));
   const issalary = /salary|payroll|wages/i.test(exp.subj + ' ' + (exp.dept||''));
 
-  const prompt = `You are summarising an expense email for CMD approval at ARIS (a BSE-listed construction materials company). Be extremely brief.
+  const prompt = `You are an analyst helping review an expense request at ARIS (BSE-listed construction materials company). The expense email below was sent by a department to their finance reviewer.
 
-${istech ? `This is a TECH expense.
-- Check if Jiten has reviewed/approved it (look for his name anywhere in the email). If NOT mentioned: flag it.
-- Summary: one sentence — which tools, what they are used for.` : ''}
-${issalary ? `This is a SALARY email.
-- Summarise in 2 sentences: total headcount, any notable changes this month (joiners, exits, increments, deductions, advance payments). Do not mention approval.` : ''}
-${!istech && !issalary ? `This is a general expense.
-- Check if line items have supporting references (invoice, bill, vendor name, purpose). Flag any major item with no backup.
-- Summary: one sentence — what these expenses cover.` : ''}
+Your job:
+${istech ? `- Tech expense: Check if Jiten is mentioned as having reviewed it. If not: flag it. Summary: what tools, what for.` : ''}
+${issalary ? `- Salary: Summarise in 2 sentences what happened this month — headcount, joiners, exits, increments, deductions, advances. Numbers only, no fluff.` : ''}
+${!istech && !issalary ? `- General expense: Does each significant line item have a purpose or vendor reference? Flag any that don't. Summary: what these expenses are for in one sentence.` : ''}
 
-Subject: ${exp.subj}
-Department: ${exp.dept||'Funds'}
-Amount: ${exp.amount||''}
-Body:
-${(exp.body||'').slice(0,1000)}
+Expense email:
+${(exp.body||'').slice(0,1200)}
 
-Respond in EXACTLY this format (no other text, no preamble):
-SUMMARY: [summary — do not mention Rohan or approval status]
-FLAG: [one sentence if something is missing, else leave blank]`;
+Respond in EXACTLY this format — nothing else:
+SUMMARY: [one crisp sentence describing what this expense is — no mention of approval, submission, or review]
+FLAG: [one sentence only if backup is genuinely missing — else leave completely empty]`;
 
   try {
     const res = await fetch('/api/ai', {

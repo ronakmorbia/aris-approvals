@@ -776,7 +776,8 @@ export default async function handler(req, res) {
           if (!(to + ' ' + cc).toLowerCase().includes('rohan')) return null;
 
           // Body = original email (what department sent to Rohan)
-          const body = stripQuotes(extractPlainText(original.payload));
+          // Do NOT stripQuotes — original email content IS the body, not a quoted reply
+          const body = extractPlainText(original.payload);
 
           // Amount from subject, fallback to body
           let amount = '';
@@ -820,7 +821,7 @@ export default async function handler(req, res) {
             date: new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
             amount,
             dept,
-            body: body.slice(0, 1500),  // full original email for AI to read
+            body: body.slice(0, 2500),  // full original email for AI to read
             approved,                    // true = Rohan approved, false = pending
             rohanNote                    // Rohan's reply if already approved
           };
