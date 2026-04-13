@@ -426,28 +426,26 @@ async function generateRohanAI(mid) {
   const istech = /tech|aws|cloud|saas|software|subscription|figma|cursor|anthropic|openai|atlassian|slack|notion|zoom|datadog/i.test(exp.subj + ' ' + (exp.dept||'') + ' ' + (exp.body||'').slice(0,200));
   const issalary = /salary|payroll|wages/i.test(exp.subj + ' ' + (exp.dept||''));
 
-  const prompt = `You are helping Rohan at ARIS summarise an expense email for CMD Ronak Morbia. Be extremely brief — Ronak reads this on mobile.
+  const prompt = `You are summarising an expense email for CMD approval at ARIS (a BSE-listed construction materials company). Be extremely brief.
 
-${istech ? `TECH EXPENSE RULES:
-- Check if Jiten has approved (look for his name/sign-off anywhere in the email). If yes: no flag. If NOT present: flag it.
-- Summary: one sentence — main tools and what they're for.` : ''}
-${issalary ? `SALARY RULES:
-- Summarise what happened this month: headcount, joiners, exits, increments, special payments or deductions. 2-3 sentences max.
-- No flag unless something unusual is explicitly mentioned.` : ''}
-${!istech && !issalary ? `GENERAL EXPENSE RULES:
-- Check if major line items mention an invoice, bill number, or vendor reference. Flag if any significant item has no backup.
-- Summary: one sentence — what these expenses are for.` : ''}
+${istech ? `This is a TECH expense.
+- Check if Jiten has reviewed/approved it (look for his name anywhere in the email). If NOT mentioned: flag it.
+- Summary: one sentence — which tools, what they are used for.` : ''}
+${issalary ? `This is a SALARY email.
+- Summarise in 2 sentences: total headcount, any notable changes this month (joiners, exits, increments, deductions, advance payments). Do not mention approval.` : ''}
+${!istech && !issalary ? `This is a general expense.
+- Check if line items have supporting references (invoice, bill, vendor name, purpose). Flag any major item with no backup.
+- Summary: one sentence — what these expenses cover.` : ''}
 
-Email:
 Subject: ${exp.subj}
 Department: ${exp.dept||'Funds'}
 Amount: ${exp.amount||''}
 Body:
 ${(exp.body||'').slice(0,1000)}
 
-Reply in EXACTLY this format (no other text):
-SUMMARY: [your summary]
-FLAG: [one sentence if needed, else leave blank]`;
+Respond in EXACTLY this format (no other text, no preamble):
+SUMMARY: [summary — do not mention Rohan or approval status]
+FLAG: [one sentence if something is missing, else leave blank]`;
 
   try {
     const res = await fetch('/api/ai', {
@@ -509,6 +507,37 @@ function toggleRohanCard(mid) {
   rohanExpenses.forEach(e => rerenderRohanCard(e.mid));
 }
 
+function parseRohanRows(body) {
+  // Parse line items from email body — same format as APP-EXP emails
+  const rows = [];
+  const lines = (body||'').split('\n');
+  let active = false;
+  const catColor = {'Payables':'#3C3489','Salary':'#27500A','Expenses':'#0C447C','Finance Cost':'#791F1F','Technology':'#0C447C'};
+  const catBg = {'Payables':'#EEEDFE','Salary':'#EAF3DE','Expenses':'#E6F1FB','Finance Cost':'#FCEBEB','Technology':'#E6F1FB'};
+  for (const line of lines) {
+    const l = line.trim();
+    if (/interest\s+expenses|top\s+\d+\s+expenses|expense\s+details|breakdown/i.test(l)) { active = true; continue; }
+    if (/^best,|^regards|^thanks/i.test(l)) break;
+    if (!active) continue;
+    if (/expense\s+head|amount\s*\(rs|^-{3,}/i.test(l)) continue;
+    const m = l.match(/^(.+?)\s{2,}([\d][\d,]+)\s*(.*)?$/);
+    if (m) {
+      const name = m[1].trim();
+      const amt = parseInt(m[2].replace(/,/g,''));
+      const purpose = (m[3]||'').trim();
+      if (!name || amt <= 0 || /total|grand/i.test(name)) continue;
+      // Categorise
+      const s = (name+' '+purpose).toLowerCase();
+      let cat = 'Expenses';
+      if (/interest|ncd|bank charge|factoring|od |loan|finance|processing fee/i.test(s)) cat = 'Finance Cost';
+      else if (/salary|payroll|wages|stipend/i.test(s)) cat = 'Salary';
+      else if (/aws|azure|google cloud|techmagify|slack|figma|openai|anthropic|cursor|zoom|notion|datadog|saas|software/i.test(s)) cat = 'Technology';
+      rows.push({ name, amt, purpose, cat, bg: catBg[cat]||'#E6F1FB', color: catColor[cat]||'#0C447C' });
+    }
+  }
+  return rows;
+}
+
 function rerenderRohanCard(mid) {
   const el = document.getElementById(`rcard-${mid}`);
   if (!el) return;
@@ -516,11 +545,33 @@ function rerenderRohanCard(mid) {
   if (!exp) return;
   const open = rohanOpenMid === mid;
 
+  // Parse line items from email body
+  const rows = parseRohanRows(exp.body);
+
+  // Line items table
+  let tableHTML = '';
+  if (rows.length) {
+    tableHTML = `<table class="tbl" style="margin-bottom:10px">
+      <thead><tr><th>Expense Head</th><th>Purpose</th><th>Category</th><th>Amount</th></tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td>${r.name}</td>
+        <td style="color:#9E9B94;font-size:11px">${r.purpose||'—'}</td>
+        <td><span style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;background:${r.bg};color:${r.color}">${r.cat}</span></td>
+        <td>${r.amt>=100000?'₹'+(r.amt/100000).toFixed(2)+' L':'₹'+r.amt.toLocaleString('en-IN')}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } else {
+    // No structured rows — show body as plain text
+    tableHTML = `<div class="note" style="white-space:pre-wrap;margin-bottom:10px">${(exp.body||'').slice(0,600)}</div>`;
+  }
+
+  // AI summary
   const aiContent = exp.aiGenerating
-    ? `<span class="ai-spinner"></span> <span style="font-size:12px;color:#9E9B94;vertical-align:middle"> Analysing…</span>`
+    ? `<span class="ai-spinner"></span><span style="font-size:12px;color:#9E9B94;vertical-align:middle;margin-left:6px">Analysing…</span>`
     : exp.aiSummary
-      ? `<div class="ai-text">${exp.aiSummary}</div>${exp.aiFlag ? `<div style="font-size:11px;color:#8A4700;background:#FFF4DC;border:0.5px solid #FAC775;border-radius:5px;padding:5px 9px;margin-top:8px;line-height:1.45">⚠ ${exp.aiFlag}</div>` : ''}`
-      : `<span style="font-size:12px;color:#9E9B94">Waiting for AI…</span>`;
+      ? `<div class="ai-text" style="font-size:12px;color:#18171A;line-height:1.6">${exp.aiSummary}</div>${exp.aiFlag ? `<div style="font-size:11px;color:#8A4700;background:#FFF4DC;border:0.5px solid #FAC775;border-radius:5px;padding:5px 9px;margin-top:6px">⚠ ${exp.aiFlag}</div>` : ''}`
+      : `<span style="font-size:12px;color:#9E9B94">—</span>`;
 
   el.innerHTML = `<div class="card${open?' open':''}" onclick="toggleRohanCard('${mid}')">
     <div class="ch">
@@ -540,21 +591,21 @@ function rerenderRohanCard(mid) {
       <span class="camount">${exp.amount||'—'}</span>
     </div>
     <div class="panel${open?' show':''}">
-      <div class="ai-box" style="margin-bottom:12px">
-        <div class="ai-box-label"><span class="ai-pulse"></span>AI Summary</div>
+      ${tableHTML}
+      <div class="sep"></div>
+      <div class="ai-box" style="margin-bottom:10px">
+        <div class="ai-box-label"><span class="ai-pulse"></span>Summary for Ronak</div>
         ${aiContent}
       </div>
-      ${exp.approved && exp.rohanNote ? `
-        <div class="note" style="margin-bottom:10px"><strong style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#9E9B94">Your Note</strong><br>${exp.rohanNote}</div>
-      ` : ''}
-      ${!exp.approved ? `
-        <div class="rohan-note-label" style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9E9B94;margin-bottom:5px">Your Note <span style="font-weight:400">(optional)</span></div>
-        <textarea class="rohan-note-ta" rows="2" placeholder="Add only if something specific needs flagging to Ronak…"
-          onclick="event.stopPropagation()" onchange="rohanNoteChange('${mid}',this.value)">${exp.note}</textarea>
-        <div class="acts" style="margin-top:8px">
-          <button class="ba" onclick="event.stopPropagation();submitToRonak('${mid}')" ${exp.aiGenerating?'disabled':''}>Approve & Send to Ronak →</button>
+      ${exp.approved ? `
+        ${exp.rohanNote ? `<div class="note">Your note: ${exp.rohanNote}</div>` : ''}
+      ` : `
+        <textarea onclick="event.stopPropagation()" onchange="rohanNoteChange('${mid}',this.value)"
+          rows="2" placeholder="Add a note for Ronak (optional)…" style="width:100%;padding:8px 10px;border:0.5px solid #C8C5BC;border-radius:8px;font-size:12px;resize:none;outline:none;font-family:inherit;margin-bottom:8px">${exp.note}</textarea>
+        <div class="acts">
+          <button class="ba" onclick="event.stopPropagation();submitToRonak('${mid}')" ${exp.aiGenerating?'disabled':''}>✓ Approve & Send to Ronak</button>
         </div>
-      ` : ''}
+      `}
     </div>
   </div>`;
 }
