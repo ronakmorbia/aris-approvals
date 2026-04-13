@@ -367,16 +367,21 @@ export default async function handler(req, res) {
   }
 
   if (action === 'auth-callback') {
+    const code = req.query.code;
+    if (!code) return res.status(400).json({ error: 'No code in callback' });
     try {
       const cleanClient = new google.auth.OAuth2(
         (process.env.GMAIL_CLIENT_ID||'').trim(),
         (process.env.GMAIL_CLIENT_SECRET||'').trim(),
         (process.env.GMAIL_REDIRECT_URI||'').trim()
       );
-      const { tokens } = await cleanClient.getToken(req.query.code);
-      res.setHeader('Location', `/?tokens=${encodeURIComponent(JSON.stringify(tokens))}`);
+      const { tokens } = await cleanClient.getToken(code);
+      if (!tokens || !tokens.access_token) return res.status(500).json({ error: 'No tokens returned from Google' });
+      const encoded = encodeURIComponent(JSON.stringify(tokens));
+      res.setHeader('Location', `/?tokens=${encoded}`);
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(302).end();
-    } catch (e) { return res.status(500).json({ error: e.message }); }
+    } catch (e) { return res.status(500).json({ error: 'Token exchange failed: ' + e.message }); }
   }
 
   const { tokens } = req.method === 'POST' ? req.body : {};
