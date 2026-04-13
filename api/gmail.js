@@ -617,7 +617,7 @@ export default async function handler(req, res) {
                 ? `${amtStr} moved from ${from} to ${to}. Nishita's done — just so you know.`
                 : `Funds moved from ${from} to ${to}. Nishita's done — just so you know.`;
             } else {
-              note = 'Internal group transfer. Nishita's handled it — for your awareness.';
+              note = 'Internal group transfer. Nishita has handled it — for your awareness.';
             }
 
           } else if (type === 'HR') {
