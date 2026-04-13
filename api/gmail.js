@@ -22,8 +22,8 @@ function cleanTitle(subj) {
 
 function fmtAmt(n) {
   if (!n || isNaN(n)) return '';
-  if (n >= 10000000) return '₹' + (n / 10000000).toFixed(2) + ' Cr';
-  if (n >= 100000) return '₹' + (n / 100000).toFixed(2) + ' L';
+  if (n >= 10000000) return '₹' + Math.round(n / 10000000) + ' Cr';
+  if (n >= 100000) return '₹' + Math.round(n / 100000) + ' L';
   return '₹' + Math.round(n).toLocaleString('en-IN');
 }
 

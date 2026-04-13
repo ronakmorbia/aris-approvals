@@ -905,6 +905,10 @@ function renderCard(item){
     const clField = (item.fields||[]).find(f => f.label === 'Credit Limit');
     if (clField) displayAmount = clField.value.split('·')[0].trim();
   }
+  if (!displayAmount && (item.type === 'EXP' || item.type === 'HR')) {
+    const totField = (item.fields||[]).find(f => f.label === 'Total Amount' || f.label === 'Total');
+    if (totField) displayAmount = totField.value;
+  }
   const ast=actionStatus[item.tid]||{};
   const fromName=refineName(smartName(item.from||''));
   const namePill=fromName?`<span class="mpill2">${fromName}</span>`:'';
