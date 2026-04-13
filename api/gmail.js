@@ -163,7 +163,7 @@ function parseExpenseRows(body) {
         ? 'Finance Cost'
         : categorise(name, purpose, 'EXP');
 
-      rows.push({ name, amount: fmtAmt(amt), purpose, category: cat });
+      rows.push({ name, amount: fmtAmt(amt), purpose: purpose || derivePurpose(name), category: cat });
     }
   }
 
@@ -749,6 +749,9 @@ export default async function handler(req, res) {
                 approvalPill = 'Amount Approved';
               }
             }
+
+            // Check if absorbed approval from broken thread should set pill now
+            if (!approvalPill && meta._absorbedApproval) approvalPill = meta._absorbedApproval;
 
             // Extract amount
             const amtMatch = body.match(/total payable amount[^\d]*([\d,]+)/i)
