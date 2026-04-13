@@ -455,7 +455,7 @@ export default async function handler(req, res) {
             if (/^(please proceed|approved|okay|ok)/i.test(snip.trim())) {
               // Tag the older (primary) with approval info
               const fromName = firstName(newer.h.from || '');
-              older._absorbedApproval = fromName ? `${fromName} Approved` : 'Approved';
+              older._absorbedApproval = 'Amount Approved';
             }
             hrBySubj.set(normSubj, older);
             hrToRemove.add(newer.msg.threadId);
@@ -726,7 +726,7 @@ export default async function handler(req, res) {
               const tmBody = extractPlainText(tm.payload || {}).trim();
               const firstLine = tmBody.split('\n')[0].trim();
               if (/^(please proceed|approved|okay|ok|done)/i.test(firstLine)) {
-                approvalPill = firstName(fromHdr?.value || '') + ' Approved';
+                approvalPill = 'Amount Approved';
               }
             }
 
