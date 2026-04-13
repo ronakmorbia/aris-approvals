@@ -61,7 +61,7 @@ main{max-width:950px;margin:0 auto;padding:1.75rem 2.5rem}
 .ic-HR{background:#EAF3DE;color:#27500A}
 .ic-GEN{background:#F5F4F0;color:#5C5A55}
 .cmain{flex:1;min-width:0;overflow:hidden}
-.ctitle{font-size:13px;font-weight:500;color:#18171A;line-height:1.35;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctitle{font-size:13px;font-weight:500;color:#18171A;line-height:1.35;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cancelled .ctitle{color:#9E9B94;text-decoration:line-through}
 .cmeta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .mdate{font-size:11px;color:#9E9B94;font-family:'Inter',sans-serif}
 .mdot{font-size:10px;color:#C8C5BC}
@@ -711,8 +711,9 @@ function getFiltered(){
   if(filter==='pending')return items.filter(i=>i.status==='pending');
   if(filter==='misc')return items.filter(i=>i.status==='fyi');
   if(filter==='approved')return items.filter(i=>i.status==='done');
-  if(['Funds','CRM','HR','Tax'].includes(filter))return items.filter(i=>i.cat===filter);
-  return items;
+  if(['Funds','CRM','HR','Tax'].includes(filter))return items.filter(i=>i.cat===filter && i.status!=='cancelled');
+  // 'all' shows everything except cancelled
+  return items.filter(i=>i.status!=='cancelled');
 }
 
 function setFilter(f){
@@ -879,10 +880,12 @@ function renderCards(){
   const pending=filtered.filter(i=>i.status==='pending');
   const fyi=filtered.filter(i=>i.status==='fyi');
   const done=filtered.filter(i=>i.status==='done');
+  const cancelled=filtered.filter(i=>i.status==='cancelled');
   let html='';
   if(pending.length)html+=renderGrp('Pending — Your Approval Needed','gd-p',pending);
   if(fyi.length)html+=renderGrp('Misc','gd-o',fyi);
   if(done.length)html+=renderGrp('Approved','gd-d',done);
+  if(cancelled.length)html+=renderGrp('Cancelled','gd-x',cancelled);
   if(!html)html=`<div class="empty"><div class="empty-t">No pending approvals!</div><div class="empty-s">You're all caught up.</div></div>`;
   area.innerHTML=html;
 }
@@ -893,6 +896,7 @@ function renderGrp(title,dotCls,list){
 
 function renderCard(item){
   const open=openTid===item.tid;
+  const isCancelledCard=item.status==='cancelled';
   // Use AI title if available, else clean the subject line
   const rawTitle = item.title && item.title !== item.subj ? item.title : cleanTitle(item.subj);
   const displayTitle = refineName(rawTitle);
@@ -939,7 +943,7 @@ function renderCard(item){
     actions=`<div class="acts"><button class="bo" onclick="event.stopPropagation();doAction('${item.tid}','okay')">✓ Mark Done</button>${ast.text?`<span class="ast ast-${ast.cls}">${ast.text}</span>`:''}</div>`;
   }
 
-  return`<div class="card${open?' open':''}" onclick="toggleCard('${item.tid}')">
+  return`<div class="card${open?' open':''} ${isCancelledCard?'cancelled':''}" onclick="toggleCard('${item.tid}')">
     <div class="ch">
       <div class="cicon ic-${item.type}">${ICONS[item.type]||ICONS.GEN}</div>
       <div class="cmain">

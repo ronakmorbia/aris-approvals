@@ -466,7 +466,7 @@ export default async function handler(req, res) {
                 note: 'Sandesh has asked to ignore this request. Please disregard.',
                 fields: [{ label: 'Status', value: 'Cancelled — Please Ignore' }, { label: 'From', value: firstName(h.from) }],
                 from: h.from || '', date: h.date || '', to: h.to || '', cc: h.cc || '',
-                isUnread, isCc, status, rohanApproved: false, approvalPill: ''
+                isUnread, isCc, status: 'cancelled', rohanApproved: false, approvalPill: 'Cancelled'
               };
             }
 
