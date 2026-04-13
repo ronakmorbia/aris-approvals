@@ -295,6 +295,76 @@ function derivePurpose(name) {
   return 'Other';
 }
 
+
+// Robust amount extraction:
+// 1. Try subject first (fastest)
+// 2. Try body for explicit total
+// 3. Cross-verify: if both found and close, use body (more precise)
+// 4. If only one found, use that
+// 5. If neither, sum amounts found in body
+function extractAmount(subj, body) {
+  // Parse any amount string → number
+  const parseNum = (s) => {
+    if (!s) return 0;
+    s = s.replace(/[₹,\s]/g, '');
+    const cr  = s.match(/(\d+\.?\d*)\s*cr/i);  if (cr)  return parseFloat(cr[1])  * 10000000;
+    const lac = s.match(/(\d+\.?\d*)\s*lac/i); if (lac) return parseFloat(lac[1]) * 100000;
+    const l   = s.match(/(\d+\.?\d*)\s*l$/i);  if (l)   return parseFloat(l[1])   * 100000;
+    return parseFloat(s) || 0;
+  };
+
+  // Try subject: Rs. X,XX,XXX or X Cr or X L
+  let subjAmt = 0;
+  const sr = subj.match(/Rs\.?\s*([\d,]+)/i);
+  if (sr) subjAmt = parseNum(sr[1]);
+  if (!subjAmt) {
+    const cr = subj.match(/(\d+\.?\d*)\s*Cr/i); if (cr) subjAmt = parseFloat(cr[1]) * 10000000;
+  }
+  if (!subjAmt) {
+    const l = subj.match(/(\d+\.?\d*)\s*L(?:acs?|akhs?)?/i); if (l) subjAmt = parseFloat(l[1]) * 100000;
+  }
+
+  if (!body) return subjAmt > 0 ? fmtAmt(subjAmt) : '';
+
+  // Try body for explicit totals — multiple patterns
+  let bodyAmt = 0;
+  const bodyPatterns = [
+    /Total Amount\s*[:\s]+Rs\.?\s*([\d,]+)/i,
+    /Total Amount\s*[:\s]+([\d,]+)\s*\/\-?/i,
+    /total payable amount[^\d]*([\d,]+)/i,
+    /Payment Amount\s*[:\s]+Rs\s*([\d,]+)/i,
+    /Amount\s*[:\s]+Rs\.?\s*([\d,]+)/i,
+    /Rs\.?\s*\*?([\d,]+)\*?\s*\/\-/i,
+  ];
+  for (const pat of bodyPatterns) {
+    const m = body.match(pat);
+    if (m) {
+      const n = parseInt(m[1].replace(/,/g, ''));
+      if (n > 10000) { bodyAmt = n; break; }
+    }
+  }
+
+  // Cross-verify: if both found
+  if (subjAmt > 0 && bodyAmt > 0) {
+    // If they're within 10% of each other, use body (more precise)
+    const diff = Math.abs(subjAmt - bodyAmt) / Math.max(subjAmt, bodyAmt);
+    return fmtAmt(diff < 0.1 ? bodyAmt : Math.max(subjAmt, bodyAmt));
+  }
+
+  // Only one found
+  if (bodyAmt > 0) return fmtAmt(bodyAmt);
+  if (subjAmt > 0) return fmtAmt(subjAmt);
+
+  // Last resort: sum all Rs. amounts found in body (for multi-tranche emails)
+  let total = 0;
+  const allAmts = [...body.matchAll(/Rs\.?\s*([\d,]+)/gi)];
+  for (const m of allAmts) {
+    const n = parseInt(m[1].replace(/,/g,''));
+    if (n > 10000) total += n;
+  }
+  return total > 0 ? fmtAmt(total) : '';
+}
+
 // Generate smart human-readable title from email data
 function smartTitle(type, subj, from, body, rows) {
   const d = subj.match(/(\d{2}-\d{2}-\d{4})/);
@@ -498,7 +568,7 @@ export default async function handler(req, res) {
       const processMsg = async (meta) => {
         const { msg, h, status, isUnread, isCc, type, snippet } = meta;
         const subj = h.subject || '';
-        let amount = extractAmtFromSubject(subj);
+        let amount = extractAmtFromSubject(subj); // pre-fill from subject, overridden by body
         let smartTitleStr = '';
         let fields = [];
         let rows = [];
@@ -567,8 +637,7 @@ export default async function handler(req, res) {
             );
             if (sandeshMsg) {
               const sb = extractPlainText(sandeshMsg.payload);
-              const tm = sb.match(/Total Amount\s*[:\s]+([\d,]+)\s*\/-?/i);
-              if (tm) amount = fmtAmt(parseInt(tm[1].replace(/,/g, '')));
+              amount = extractAmount(subj, sb);
             }
 
             fields = [
@@ -580,6 +649,9 @@ export default async function handler(req, res) {
           } else if (type === 'VPAY') {
             const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
             const body = extractPlainText(full.data.payload);
+
+            // Set amount from body FIRST — so it's available even if Excel fetch fails
+            amount = extractAmount(subj, body);
 
             const findAtts = (parts) => {
               const atts = [];
@@ -593,13 +665,14 @@ export default async function handler(req, res) {
             };
             const atts = findAtts([full.data.payload]);
 
-            if (atts.length > 0) {
-              const attRes = await gmail.users.messages.attachments.get({ userId: 'me', messageId: msg.id, id: atts[0].id });
-              rows = parseExcel(attRes.data.data, 'VPAY');
+            // Only download Excel for pending VPAY (rows needed for display)
+            // Done VPAY: amount+note sufficient, skip expensive Excel download
+            if (atts.length > 0 && status === 'pending') {
+              try {
+                const attRes = await gmail.users.messages.attachments.get({ userId: 'me', messageId: msg.id, id: atts[0].id });
+                rows = parseExcel(attRes.data.data, 'VPAY');
+              } catch(attErr) { /* Excel fetch failed — amount already set from body */ }
             }
-
-            const tm = body.match(/Total Amount\s*[:\s]+Rs\.?\s*([\d,]+)/i);
-            if (tm) amount = fmtAmt(parseInt(tm[1].replace(/,/g, '')));
 
             const accts = subj.includes('OD & CA') ? 'OD & CA' : subj.includes('OD') ? 'OD' : 'CA';
             fields = [
@@ -621,7 +694,7 @@ export default async function handler(req, res) {
               .trim();
 
             const { rows: tdRows, total } = parseTDAmounts(body);
-            if (total > 0) amount = fmtAmt(total);
+            amount = total > 0 ? fmtAmt(total) : extractAmount(subj, body);
 
             rows = tdRows.map(r => ({
               name: r.date,
@@ -661,6 +734,7 @@ export default async function handler(req, res) {
                 amount = fmtAmt(n);
               }
             }
+            if (!amount) amount = extractAmount(subj, body);
             // Smart CRM note
             const custField = fields.find(f => f.label === 'Customer Name' || f.label === 'Party Name');
             const custName = custField ? custField.value.trim().split('\n')[0].split(' ').slice(0,3).join(' ') : '';
@@ -713,7 +787,7 @@ export default async function handler(req, res) {
               }
             }
 
-            amount = totalAmt > 0 ? fmtAmt(totalAmt) : extractAmtFromSubject(subj);
+            amount = totalAmt > 0 ? fmtAmt(totalAmt) : extractAmount(subj, body);
 
             // Fields — one row per transfer
             if (transfers.length > 0) {
@@ -758,9 +832,7 @@ export default async function handler(req, res) {
             if (!approvalPill && meta._absorbedApproval) approvalPill = meta._absorbedApproval;
 
             // Extract amount
-            const amtMatch = body.match(/total payable amount[^\d]*([\d,]+)/i)
-              || body.match(/Rs\.?\s*\*?([\d,]+)\*?\s*\/\-/i);
-            if (amtMatch) amount = fmtAmt(parseInt(amtMatch[1].replace(/,/g,'')));
+            amount = extractAmount(subj, body);
 
             // Smart title — use what the email is about, not subject
             const titleMatch = body.match(/Employee Expense\s+([A-Za-z]+-?\d*)/i)
@@ -860,17 +932,8 @@ export default async function handler(req, res) {
         smartTitleStr = smartTitleStr || smartTitle(type, subj, h.from, '', rows);
         if (meta._absorbedApproval && !approvalPill) approvalPill = meta._absorbedApproval;
 
-        // Universal amount fallback — try snippet if still empty
-        if (!amount) {
-          const snipAmt = snippet.match(/Rs\.?\s*\*?([\d,]+)\*?/i)
-            || snippet.match(/([\d,]+)\s*\/-/i);
-          if (snipAmt) {
-            const n = parseInt(snipAmt[1].replace(/,/g,''));
-            if (n > 1000) amount = fmtAmt(n);
-          }
-        }
-        // Last resort — extract from subject
-        if (!amount) amount = extractAmtFromSubject(subj);
+        // Final fallback — use snippet as body proxy
+        if (!amount) amount = extractAmount(subj, snippet);
 
         // Ensure done items always have a note
         if (status === 'done' && !note) {
@@ -886,7 +949,7 @@ export default async function handler(req, res) {
 
       // Process in parallel with priority — pending first, then done
       const [pendingItems, expDoneItems, tdDoneItems, liteItems] = await Promise.all([
-        Promise.all(pending.slice(0, 25).map(processMsg)),
+        Promise.all(pending.slice(0, 20).map(processMsg)),
         Promise.all(expDone.slice(0, 8).map(processMsg)),
         Promise.all(tdDone.slice(0, 8).map(processMsg)),
         Promise.all(doneLite.slice(0, 15).map(processMsg)),
