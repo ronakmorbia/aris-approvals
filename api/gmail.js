@@ -813,9 +813,13 @@ export default async function handler(req, res) {
             const thread = await gmail.users.threads.get({ userId: 'me', id: msg.threadId, format: 'full' });
             const allMsgs = thread.data.messages || [];
 
-            // Get the earliest message body (original request)
-            const originalMsg = allMsgs[0];
-            const body = stripQuotes(extractPlainText(originalMsg?.payload || {}));
+            // Pick richest body (longest = original with full breakdown)
+            let richBody = '';
+            for (const tm of allMsgs) {
+              const b = extractPlainText(tm.payload || {});
+              if (b.length > richBody.length) richBody = b;
+            }
+            const body = stripQuotes(richBody);
 
             // Check if anyone has approved in any message in this thread
             for (const tm of allMsgs) {
@@ -833,6 +837,23 @@ export default async function handler(req, res) {
 
             // Extract amount
             amount = extractAmount(subj, body);
+
+            // If still no amount — may be Rohan's broken thread, search related threads
+            if (!amount) {
+              try {
+                const normSubj = subj.replace(/^(RE:|Re:|Fwd:|FWD:)\s*/gi,'').trim().slice(0, 50);
+                const srRes = await gmail.users.messages.list({
+                  userId: 'me', q: 'label:HR subject:"' + normSubj + '"', maxResults: 5
+                });
+                for (const sm of (srRes.data.messages || [])) {
+                  if (sm.threadId === msg.threadId) continue;
+                  const smMsg = await gmail.users.messages.get({ userId: 'me', id: sm.id, format: 'full' });
+                  const smBody = extractPlainText(smMsg.data.payload);
+                  const a = extractAmount(subj, smBody);
+                  if (a) { amount = a; break; }
+                }
+              } catch(e2) {}
+            }
 
             // Smart title — use what the email is about, not subject
             const titleMatch = body.match(/Employee Expense\s+([A-Za-z]+-?\d*)/i)
@@ -911,7 +932,37 @@ export default async function handler(req, res) {
             }
 
           } else {
-            note = snippet.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
+            // Use AI to generate a smart summary for unknown email types
+            try {
+              const full = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+              const rawBody = extractPlainText(full.data.payload);
+              const cleanBody = stripQuotes(rawBody).slice(0, 800);
+              if (cleanBody.length > 50) {
+                const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': process.env.ANTHROPIC_API_KEY,
+                    'anthropic-version': '2023-06-01'
+                  },
+                  body: JSON.stringify({
+                    model: 'claude-haiku-4-5-20251001',
+                    max_tokens: 120,
+                    messages: [{ role: 'user', content: `This is an internal business email. Write ONE concise sentence (max 120 chars) describing what action is needed or what happened. No preamble, just the sentence.
+
+Subject: ${subj}
+
+${cleanBody}` }]
+                  })
+                });
+                const aiData = await aiRes.json();
+                note = aiData.content?.[0]?.text?.trim() || snippet;
+              } else {
+                note = snippet.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
+              }
+            } catch(aiErr) {
+              note = snippet.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
+            }
             fields = [{ label: 'From', value: firstName(h.from) }];
           }
 
@@ -947,12 +998,12 @@ export default async function handler(req, res) {
         };
       };
 
-      // Process in parallel with priority — pending first, then done
+      // Process all pending (no limit) + done items (capped to avoid timeout)
       const [pendingItems, expDoneItems, tdDoneItems, liteItems] = await Promise.all([
-        Promise.all(pending.slice(0, 20).map(processMsg)),
-        Promise.all(expDone.slice(0, 8).map(processMsg)),
-        Promise.all(tdDone.slice(0, 8).map(processMsg)),
-        Promise.all(doneLite.slice(0, 15).map(processMsg)),
+        Promise.all(pending.map(processMsg)),          // ALL pending — never cut these
+        Promise.all(expDone.slice(0, 6).map(processMsg)),
+        Promise.all(tdDone.slice(0, 6).map(processMsg)),
+        Promise.all(doneLite.slice(0, 12).map(processMsg)),
       ]);
       const items = [...pendingItems, ...expDoneItems, ...tdDoneItems, ...liteItems].filter(Boolean);
       return res.json({ items, refreshedTokens: oauth2Client.credentials });
